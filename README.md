@@ -3,14 +3,18 @@
 ## OpenCode Coordinator Workflow
 
 <p align="center">
+  <img src="Orchestrator-Skillset.png" alt="Orchestrator-Skillset hero image" width="100%">
+</p>
+
+<p align="center">
   <a href="https://opencode.ai"><img src="https://img.shields.io/badge/OpenCode-skill-111827?style=for-the-badge" alt="OpenCode skill"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/workflow-model--agnostic-6f42c1?style=for-the-badge" alt="Model agnostic workflow">
 </p>
 
-**A model-agnostic software engineering SOP for OpenCode: plan first, delegate narrowly, repair from evidence, and review before shipping.**
+**OpenCode Coordinator Workflow: a model-agnostic software engineering SOP to plan first, delegate narrowly, repair from evidence, and review before shipping.**
 
-OpenCode Coordinator Workflow turns ad hoc coding sessions into a repeatable planner-worker-review system. It separates investigation, implementation, repair, and review into role-based agents so you can swap models without rewriting your operating procedure.
+Orchestrator-Skillset turns ad hoc OpenCode coding sessions into a repeatable planner-worker-review system. It separates investigation, implementation, repair, and review into role-based agents so you can swap models without rewriting your operating procedure.
 
 Use it when you want OpenCode to behave like a senior engineering lead: inspect only what matters, define success criteria before edits, use one implementation worker per change-set, and keep destructive actions behind explicit approval.
 
