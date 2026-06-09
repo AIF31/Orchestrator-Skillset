@@ -1,4 +1,6 @@
-# OpenCode Coordinator Workflow
+# Orchestrator-Skillset
+
+## OpenCode Coordinator Workflow
 
 <p align="center">
   <a href="https://opencode.ai"><img src="https://img.shields.io/badge/OpenCode-skill-111827?style=for-the-badge" alt="OpenCode skill"></a>
