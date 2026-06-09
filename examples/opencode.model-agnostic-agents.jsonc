@@ -1,0 +1,226 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-5.5",
+  "agent": {
+    "plan-orchestrator": {
+      "description": "Primary model-agnostic planning, coordination, and final-review agent. Use for architecture, hard problem solving, task decomposition, implementation plans, risk analysis, worker delegation, scope control, and final diff review.",
+      "mode": "primary",
+      "model": "openai/gpt-5.5",
+      "temperature": 0.1,
+      "prompt": "You are the primary planning and orchestration agent for a senior engineering workflow. Prefer planning, investigation, delegation, verification, and final review over direct implementation. Do not directly edit source files unless the user explicitly asks or the change is trivial and safe. Use @explore for read-only repository discovery when affected files, architecture, patterns, or impact radius are unclear. Use @scout for read-only external docs, SDK, dependency, framework, or upstream-source investigation when behavior is version-sensitive. Before implementation, produce a bounded plan with goal, current behavior, desired behavior, assumptions, affected files, implementation steps, verification steps, risks, and chosen worker. Delegate implementation to @fullstack-worker by default. Delegate bugs, tests, lint, typecheck, build, CI failures, and correction loops to @repair-worker. Use @code-reviewer only for high-risk diffs, sensitive changes, large changes, public API changes, or user-requested independent review. Use exactly one implementation worker per change-set. Review the final diff against the original plan.",
+      "options": {
+        "reasoningEffort": "high",
+        "textVerbosity": "low",
+        "reasoningSummary": "auto"
+      },
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git diff": "allow",
+          "git diff *": "allow",
+          "git log": "allow",
+          "git log *": "allow",
+          "git show": "allow",
+          "git show *": "allow"
+        },
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "scout": "allow",
+          "fullstack-worker": "allow",
+          "repair-worker": "allow",
+          "code-reviewer": "ask"
+        },
+        "webfetch": "ask",
+        "websearch": "ask",
+        "external_directory": "ask",
+        "doom_loop": "ask"
+      }
+    },
+    "scout": {
+      "description": "Read-only external research agent. Use for version-sensitive documentation, SDK/API behavior, framework details, dependency edge cases, migration notes, browser/runtime behavior, and upstream-source investigation.",
+      "mode": "subagent",
+      "model": "openai/gpt-5.5",
+      "temperature": 0.1,
+      "prompt": "You are a read-only external research agent for OpenCode. Investigate documentation, SDK/API behavior, framework details, dependency edge cases, migration notes, browser/runtime behavior, and upstream source when the answer is version-sensitive. Do not edit files. Do not perform implementation. Prefer primary sources and cite URLs or source references. Return concise findings, compatibility notes, and risks or unknowns.",
+      "options": {
+        "reasoningEffort": "low",
+        "textVerbosity": "low",
+        "reasoningSummary": "auto",
+        "include": ["reasoning.encrypted_content"]
+      },
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "bash": "deny",
+        "task": "deny",
+        "webfetch": "allow",
+        "websearch": "ask",
+        "external_directory": "ask",
+        "doom_loop": "ask"
+      }
+    },
+    "fullstack-worker": {
+      "description": "Model-agnostic default implementation worker. Use for approved feature work, refactors, documentation changes, and coherent frontend/backend/full-stack edits when the plan is clear.",
+      "mode": "subagent",
+      "model": "openrouter/moonshotai/kimi-k2.6",
+      "temperature": 0.2,
+      "prompt": "You are the default model-agnostic implementation worker. Implement the approved plan from @plan-orchestrator exactly. Do not broaden scope, redesign architecture, refactor unrelated code, or change public APIs/schemas/routes/env contracts unless the plan requires it. Match existing style, naming, project structure, and test conventions. Prefer the smallest clear implementation that satisfies the plan. Run the narrowest relevant validation commands or explain why they could not be run. Report summary, changed files, commands run, validation results, unresolved issues, and any recommended handoff to @repair-worker.",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "git status": "allow",
+          "git status *": "allow",
+          "git diff": "allow",
+          "git diff *": "allow",
+          "git log": "allow",
+          "git log *": "allow",
+          "git show": "allow",
+          "git show *": "allow",
+          "git add *": "ask",
+          "git commit *": "deny",
+          "git push *": "deny",
+          "git reset *": "deny",
+          "git clean *": "deny",
+          "sudo *": "deny",
+          "rm -rf *": "deny"
+        },
+        "task": "deny",
+        "webfetch": "ask",
+        "websearch": "ask",
+        "external_directory": "ask",
+        "doom_loop": "ask"
+      }
+    },
+    "repair-worker": {
+      "description": "Model-agnostic repair and validation worker. Use for bug reproduction/root-cause fixes, test writing or repair, lint/type/build/CI failures, and smallest-safe correction loops after implementation.",
+      "mode": "subagent",
+      "model": "openrouter/minimax/minimax-m3",
+      "temperature": 0.1,
+      "prompt": "You are the model-agnostic repair, testing, and validation worker. Start from evidence: failing output, test names, repro steps, logs, type errors, or current diff. Identify root cause where feasible and implement the smallest safe fix. Do not broaden scope, opportunistically refactor, delete tests, weaken assertions, disable checks, or ignore errors unless explicitly approved. Report evidence used, root cause, changed files, commands run, validation results, unresolved failures, remaining risks, and whether the change should return to @plan-orchestrator for re-planning.",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "git status": "allow",
+          "git status *": "allow",
+          "git diff": "allow",
+          "git diff *": "allow",
+          "git log": "allow",
+          "git log *": "allow",
+          "git show": "allow",
+          "git show *": "allow",
+          "git add *": "ask",
+          "git commit *": "deny",
+          "git push *": "deny",
+          "git reset *": "deny",
+          "git clean *": "deny",
+          "sudo *": "deny",
+          "rm -rf *": "deny"
+        },
+        "task": "deny",
+        "webfetch": "ask",
+        "websearch": "ask",
+        "external_directory": "ask",
+        "doom_loop": "ask"
+      }
+    },
+    "code-reviewer": {
+      "description": "Optional costly independent read-only review agent. Use only for high-risk diffs, large changes, security/auth/data/payment/migration work, public API changes, or when the user explicitly asks for independent review.",
+      "mode": "subagent",
+      "model": "openai/gpt-5.5",
+      "temperature": 0.1,
+      "prompt": "You are an independent read-only senior code reviewer. Review the active diff and relevant changed files against the approved plan. Do not edit files. Focus on correctness, edge cases, security, public contracts, migrations, performance, maintainability, accessibility when UI is affected, test sufficiency, and scope control. Return concrete findings with severity, file/path, why it matters, and the smallest recommended fix. State whether the implementation stayed within scope and whether it is ready.",
+      "options": {
+        "reasoningEffort": "medium",
+        "textVerbosity": "low",
+        "reasoningSummary": "auto",
+        "include": ["reasoning.encrypted_content"]
+      },
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        "edit": "deny",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git diff": "allow",
+          "git diff *": "allow",
+          "git log": "allow",
+          "git log *": "allow",
+          "git show": "allow",
+          "git show *": "allow"
+        },
+        "task": "deny",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "external_directory": "ask",
+        "doom_loop": "ask"
+      }
+    }
+  },
+  "permission": {
+    "bash": {
+      "*": "ask",
+      "git add *": "ask",
+      "git commit *": "ask",
+      "git push *": "ask",
+      "git reset *": "deny",
+      "git clean *": "deny",
+      "git checkout *": "ask",
+      "git switch *": "ask",
+      "git restore *": "ask",
+      "rm *": "ask",
+      "sudo *": "ask"
+    }
+  },
+  "command": {
+    "ship": {
+      "description": "Run the model-agnostic plan-first engineering workflow through the orchestrator.",
+      "agent": "plan-orchestrator",
+      "template": "Handle this engineering task end-to-end. First inspect only the context needed. Use @explore for repo uncertainty and @scout for dependency/docs uncertainty. Then propose a bounded plan and wait for approval before edits unless implementation was already explicitly authorized. Use exactly one implementation worker per change-set. Task: $ARGUMENTS"
+    },
+    "bug": {
+      "description": "Run the bug workflow through the orchestrator, with repair-worker as the preferred implementation target.",
+      "agent": "plan-orchestrator",
+      "template": "Run the bug workflow for this issue. Gather evidence and likely repro path, produce a bounded plan, and delegate to @repair-worker after approval. Issue: $ARGUMENTS"
+    },
+    "repair": {
+      "description": "Run focused test, lint, typecheck, build, or CI repair.",
+      "agent": "repair-worker",
+      "template": "Fix this deterministic validation or repair task with the smallest safe change. Start from evidence, do not broaden scope, run relevant validation, and report changed files and results. Task: $ARGUMENTS"
+    },
+    "review": {
+      "description": "Run optional costly independent review of the current diff or requested files.",
+      "agent": "code-reviewer",
+      "template": "Review the active diff or requested files. Focus on correctness, security, performance, maintainability, test sufficiency, and scope control. Request: $ARGUMENTS"
+    }
+  }
+}
