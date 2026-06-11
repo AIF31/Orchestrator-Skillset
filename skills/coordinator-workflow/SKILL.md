@@ -4,12 +4,13 @@ description: Model-agnostic planner-worker-review workflow for OpenCode coding t
 license: MIT
 compatibility: opencode
 metadata:
-  workflow: planner-explore-scout-worker-repair-review
+  workflow: planner-explore-scout-worker-repair-docs-review
   primary-agent: plan-orchestrator
   repo-investigation: explore
   docs-investigation: scout
   default-worker: fullstack-worker
   repair-worker: repair-worker
+  docs-maintainer: docs-maintainer
   optional-reviewer: code-reviewer
   model-policy: agent names are role-based and model-agnostic; change model fields in opencode config when testing new models
 ---
@@ -36,9 +37,10 @@ Operate in this loop:
 10. Use `@fullstack-worker` for normal implementation work, with one clear feature scope per worker.
 11. Use `@repair-worker` for bugs, tests, lint, typecheck, build, CI failures, and correction loops.
 12. Review the worker output and current git diff against the original plan.
-13. Use `@code-reviewer` only as an optional costly independent review gate for high-risk or user-requested reviews.
-14. Request the smallest correction loop if the diff does not satisfy the plan.
-15. Propose a commit only after the diff satisfies the plan and verification is complete.
+13. Use `@docs-maintainer` whenever relevant changes should be captured in README.md, Info/, architecture notes, usage docs, examples, or other durable project documentation.
+14. Use `@code-reviewer` only as an optional costly independent review gate for high-risk or user-requested reviews.
+15. Request the smallest correction loop if the diff does not satisfy the plan.
+16. Propose a commit only after the diff satisfies the plan, verification is complete, and relevant docs are updated.
 
 ## Agent Roles
 
@@ -58,6 +60,7 @@ Responsibilities:
 - Assign each implementation worker a precise, non-overlapping feature scope.
 - Review the final diff against the original plan.
 - Prevent scope creep.
+- Decide whether `@docs-maintainer` is required for durable documentation updates.
 - Decide whether optional `@code-reviewer` is worth the cost.
 
 The orchestrator should prefer planning and review over direct implementation. It should not directly edit source files unless the user explicitly asks or the change is trivial and safe.
@@ -98,7 +101,16 @@ Do not use `@scout` for implementation.
 
 Use `@fullstack-worker` as the default implementation worker.
 
-Use it for feature implementation, frontend changes, backend changes, full-stack changes, planned refactors, documentation edits, configuration changes, and straightforward multi-file edits where the plan is clear.
+Use it for:
+
+- Feature implementation.
+- Frontend changes.
+- Backend changes.
+- Full-stack changes.
+- Refactors explicitly requested in the plan.
+- Documentation edits.
+- Configuration changes.
+- Straightforward multi-file edits where the plan is clear.
 
 Worker instructions:
 
@@ -115,7 +127,18 @@ Worker instructions:
 
 Use `@repair-worker` as the focused repair, testing, and validation worker.
 
-Use it for bugs, root-cause analysis, smallest-safe bug fixes, regression tests, test additions or repairs, lint failures, typecheck failures, build failures, CI-style deterministic failures, and correction loops after `@fullstack-worker`.
+Use it for:
+
+- Bug reproduction.
+- Root-cause analysis.
+- Smallest-safe bug fixes.
+- Regression tests.
+- Test additions or repairs.
+- Lint failures.
+- Typecheck failures.
+- Build failures.
+- CI-style deterministic failures.
+- Correction loops after `@fullstack-worker`.
 
 Worker instructions:
 
@@ -127,21 +150,87 @@ Worker instructions:
 - Stop and report if the failure indicates a broader product or architecture decision.
 - Report evidence, root cause, changed files, commands run, validation results, unresolved failures, and risks.
 
+### docs-maintainer
+
+Use `@docs-maintainer` as the documentation, research-note, and repo-docs maintenance worker.
+
+Use it for:
+
+- Updating README.md after user-facing workflow, setup, command, or architecture changes.
+- Creating or updating durable notes under `Info/`.
+- Capturing relevant research findings, implementation decisions, tradeoffs, and migration notes.
+- Updating architecture docs, usage docs, examples, and configuration docs.
+- Keeping documentation aligned after `@fullstack-worker` or `@repair-worker` changes.
+- Producing concise change summaries that future agents and maintainers can understand.
+
+Documentation worker instructions:
+
+- Prefer updating existing docs over creating duplicates.
+- Put durable research notes, implementation summaries, and decisions under `Info/`.
+- Keep README.md concise and current; move long explanations to `Info/` or docs folders.
+- Preserve model-agnostic wording unless documenting a concrete example config.
+- Do not edit application/source code.
+- Do not change runtime behavior, tests, package files, schemas, or public contracts.
+- Do not invent features, tests, commands, or support guarantees that are not present.
+- Stop and report if source changes are required to make the documentation true.
+- Report docs changed, Info/ entries created or updated, README changes, commands run, and remaining stale-doc risks.
+
 ### code-reviewer
 
 Use `@code-reviewer` only when independent review is worth the extra cost.
 
-Use it for high-risk changes, security-sensitive changes, auth, payments, data, migrations, permissions, public API/schema changes, large diffs, release-critical work, and user-requested second reviews.
+Use it for:
+
+- High-risk changes.
+- Security-sensitive changes.
+- Auth, payments, data, migrations, or permissions work.
+- Public API or schema changes.
+- Large diffs.
+- Release-critical work.
+- User-requested second review.
 
 The normal final review can be performed by `@plan-orchestrator`. `@code-reviewer` should be a read-only review gate, not an implementation worker.
+
+Reviewer instructions:
+
+- Review the diff against the original plan.
+- Do not edit files.
+- Focus on correctness, edge cases, security, performance, maintainability, contract compatibility, and test sufficiency.
+- Return concrete findings with severity.
+- State whether the implementation stayed within scope.
+- Provide the smallest correction prompt when not ready.
 
 ## Worker Selection Rule
 
 Default to `@fullstack-worker`.
 
-Use `@repair-worker` when the request is primarily a bug fix, test creation or repair, starts from failing validation output, follows a failed implementation, requires root-cause analysis, or needs a smallest-safe correction loop.
+Use `@repair-worker` when at least one condition is true:
 
-Use `@code-reviewer` only when the user explicitly asks for independent review, the diff is high risk, the change touches sensitive contracts or data, the diff is large or release-critical, or the orchestrator is uncertain after its own review.
+- The request is primarily a bug fix.
+- The request is primarily test creation or test repair.
+- The request starts from a failing test, lint, typecheck, build, or CI output.
+- A previous implementation is close but validation failed.
+- The task requires root-cause analysis before editing.
+- The orchestrator needs a smallest-safe correction loop.
+
+Use `@docs-maintainer` when at least one condition is true:
+
+- The implementation changes user-facing behavior, setup, commands, architecture, or workflow.
+- The task produced durable research findings or dependency decisions.
+- README.md is now stale or incomplete.
+- New or changed examples/configuration need explanation.
+- A change should be summarized under `Info/` for future reference.
+- The user explicitly asks to update documentation.
+
+Use `@code-reviewer` only when at least one condition is true:
+
+- The user explicitly asks for independent review.
+- The diff is high risk.
+- The change touches auth, security, payments, permissions, data integrity, migrations, or public API contracts.
+- The diff is large or release-critical.
+- The orchestrator is uncertain after its own review.
+
+Do not use `@code-reviewer` for every small change. The orchestrator should review normal diffs itself.
 
 ## Planning Template
 
@@ -169,11 +258,17 @@ Implementation steps:
 
 Tests / verification:
 
+Documentation updates:
+- README update needed: yes/no
+- Info/ note needed: yes/no
+- Other docs/examples update needed: yes/no
+
 Risks:
 
 Delegation targets:
 - One or more @fullstack-worker agents for normal implementation, split by precise non-overlapping feature scope when useful
 - @repair-worker for bug/test/build/lint/typecheck/CI repair or correction loops
+- @docs-maintainer for README, Info/, architecture notes, usage docs, examples, or research summaries
 - @code-reviewer only for optional costly independent review
 
 Worker prompt(s):
@@ -227,6 +322,28 @@ Constraints:
 - Report evidence, root cause, changed files, commands run, validation results, and unresolved risks.
 ```
 
+### Documentation maintenance
+
+```text
+@docs-maintainer Update documentation for this approved change or research result.
+
+Context:
+[what changed / research result / implementation summary]
+
+Documentation scope:
+- README.md: [yes/no and what to update]
+- Info/: [yes/no and durable note topic]
+- Other docs/examples: [yes/no and paths if known]
+
+Constraints:
+- Do not edit source/application code.
+- Do not change runtime behavior, package files, schemas, tests, or public contracts.
+- Prefer updating existing docs over creating duplicates.
+- Keep README concise; move detailed notes to Info/ or docs folders.
+- Do not invent unsupported features, commands, tests, or guarantees.
+- Report docs changed, Info/ entries created or updated, README changes, commands run, and remaining stale-doc risks.
+```
+
 ### Optional independent review
 
 ```text
@@ -268,11 +385,12 @@ Check:
 - Are there unrelated refactors or formatting changes?
 - Are public contracts unchanged unless planned?
 - Are tests added or updated where appropriate?
+- Are README.md, Info/, and related docs updated when relevant?
 - Were relevant tests run?
 - Are there obvious security, correctness, accessibility, performance, or maintainability issues?
 - Is the change ready to commit?
 
-If not ready, provide the smallest correction prompt for @fullstack-worker or @repair-worker.
+If not ready, provide the smallest correction prompt for @fullstack-worker, @repair-worker, or @docs-maintainer.
 Use @code-reviewer only if independent review is justified by risk or user request.
 ```
 
@@ -300,9 +418,21 @@ Every plan step must have a verification method. Convert bugs into reproducing c
 
 Never silently perform destructive or remote-impacting actions.
 
-Require explicit user approval for `git add *`, `git commit *`, `git push *`, `git checkout *`, `git switch *`, `git restore *`, `rm *`, and `sudo *`.
+Require explicit user approval for:
 
-Treat `git reset *` and `git clean *` as normally forbidden unless the user explicitly overrides the workflow.
+- `git add *`
+- `git commit *`
+- `git push *`
+- `git checkout *`
+- `git switch *`
+- `git restore *`
+- `rm *`
+- `sudo *`
+
+Treat these as normally forbidden unless the user explicitly overrides the workflow:
+
+- `git reset *`
+- `git clean *`
 
 ## Completion Report
 
@@ -314,6 +444,11 @@ Summary:
 Changed files:
 
 Verification run:
+
+Documentation updates:
+- README.md:
+- Info/:
+- Other docs:
 
 Result:
 

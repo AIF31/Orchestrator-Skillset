@@ -54,6 +54,7 @@ After installing the example config, use the workflow commands:
 /bug reproduce and fix the checkout validation error
 /repair fix the failing typecheck
 /review review the active diff for security and correctness issues
+/docs update the README and Info/ notes for the new settings workflow
 ```
 
 Or invoke the agents directly from OpenCode:
@@ -62,6 +63,7 @@ Or invoke the agents directly from OpenCode:
 @plan-orchestrator plan the smallest safe fix for this failing test
 @fullstack-worker implement the approved plan exactly
 @repair-worker fix this deterministic build failure from the attached output
+@docs-maintainer update README and Info/ notes for the approved change
 @code-reviewer review the current diff against the approved plan
 ```
 
@@ -74,8 +76,9 @@ Most agentic coding failures come from the same few problems:
 - A bug fix turns into an unplanned refactor.
 - Validation fails and the next loop guesses instead of using evidence.
 - Review happens as a summary, not a diff check against the plan.
+- Documentation drifts out of date after changes ship.
 
-This workflow makes those failure modes explicit. The orchestrator plans and reviews. Implementation workers edit only after a bounded plan exists and each worker has a precise, non-overlapping feature scope. The repair worker starts from logs, test names, diffs, or repro steps. The reviewer stays read-only and is reserved for changes where independent review is worth the cost.
+This workflow makes those failure modes explicit. The orchestrator plans and reviews. Implementation workers edit only after a bounded plan exists and each worker has a precise, non-overlapping feature scope. The repair worker starts from logs, test names, diffs, or repro steps. The docs maintainer keeps README.md and Info/ notes aligned with what actually shipped. The reviewer stays read-only and is reserved for changes where independent review is worth the cost.
 
 ## What You Get
 
@@ -95,6 +98,7 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 | `scout` | subagent | Researches external docs, SDK behavior, dependencies, frameworks, and upstream source. |
 | `fullstack-worker` | subagent | Implements approved frontend, backend, full-stack, docs, config, and refactor plans. |
 | `repair-worker` | subagent | Fixes bugs, tests, lint, typecheck, build, CI, and correction-loop failures from evidence. |
+| `docs-maintainer` | subagent | Keeps README.md, Info/ research notes, architecture docs, usage docs, and examples accurate after relevant changes. |
 | `code-reviewer` | subagent | Performs optional read-only independent review for high-risk or user-requested checks. |
 
 ## How It Works
@@ -106,7 +110,8 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 5. `@fullstack-worker` handles normal approved implementation work, with one clear feature scope per worker.
 6. `@repair-worker` handles bugs, failed validation, focused corrections, and root-cause loops.
 7. The orchestrator reviews the current diff against the original plan.
-8. `@code-reviewer` is used only when independent review is justified by risk or requested by the user.
+8. `@docs-maintainer` updates README.md, Info/ notes, and related docs when the change or research result should be captured durably.
+9. `@code-reviewer` is used only when independent review is justified by risk or requested by the user.
 
 ## Model-Agnostic By Design
 
@@ -119,7 +124,7 @@ Recommended policy:
 - Put `plan-orchestrator` on your strongest planning model.
 - Put `code-reviewer` on a strong review model with medium reasoning effort.
 - Put `scout` on a low-effort model that can browse or fetch docs efficiently.
-- Put `fullstack-worker` and `repair-worker` on models that match your cost, speed, context, and reliability needs.
+- Put `fullstack-worker`, `repair-worker`, and `docs-maintainer` on models that match your cost, speed, context, and reliability needs.
 
 The included example uses role-based defaults and reasoning options:
 
@@ -213,6 +218,7 @@ Review these permissions before installing in a different organization or securi
 ├── README.md
 ├── LICENSE
 ├── commands/
+│   ├── document.md
 │   ├── fix-review.md
 │   ├── implement-secondary.md
 │   └── implement.md
