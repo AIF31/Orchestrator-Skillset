@@ -16,7 +16,7 @@
 
 Orchestrator-Skillset turns ad hoc OpenCode coding sessions into a repeatable planner-worker-review system. It separates investigation, implementation, repair, and review into role-based agents so you can swap models without rewriting your operating procedure.
 
-Use it when you want OpenCode to behave like a senior engineering lead: inspect only what matters, define success criteria before edits, use one implementation worker per change-set, and keep destructive actions behind explicit approval.
+Use it when you want OpenCode to behave like a senior engineering lead: inspect only what matters, define success criteria before edits, delegate implementation to as many feature-scoped workers as necessary, and keep destructive actions behind explicit approval.
 
 ## Quickstart
 
@@ -70,12 +70,12 @@ Or invoke the agents directly from OpenCode:
 Most agentic coding failures come from the same few problems:
 
 - The agent starts editing before it understands the repo.
-- Multiple workers touch the same change-set and create conflicting diffs.
+- Multiple workers touch overlapping change-sets and create conflicting diffs.
 - A bug fix turns into an unplanned refactor.
 - Validation fails and the next loop guesses instead of using evidence.
 - Review happens as a summary, not a diff check against the plan.
 
-This workflow makes those failure modes explicit. The orchestrator plans and reviews. The implementation worker edits only after a bounded plan exists. The repair worker starts from logs, test names, diffs, or repro steps. The reviewer stays read-only and is reserved for changes where independent review is worth the cost.
+This workflow makes those failure modes explicit. The orchestrator plans and reviews. Implementation workers edit only after a bounded plan exists and each worker has a precise, non-overlapping feature scope. The repair worker starts from logs, test names, diffs, or repro steps. The reviewer stays read-only and is reserved for changes where independent review is worth the cost.
 
 ## What You Get
 
@@ -102,8 +102,8 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 1. The orchestrator clarifies the smallest useful outcome.
 2. It uses `@explore` for repo uncertainty and `@scout` for version-sensitive external research.
 3. It writes a bounded plan with assumptions, affected files, implementation steps, verification, risks, and worker choice.
-4. It delegates to exactly one implementation worker for the change-set.
-5. `@fullstack-worker` handles normal approved implementation work.
+4. It delegates to one or more implementation workers when the work decomposes into precise, non-overlapping feature scopes.
+5. `@fullstack-worker` handles normal approved implementation work, with one clear feature scope per worker.
 6. `@repair-worker` handles bugs, failed validation, focused corrections, and root-cause loops.
 7. The orchestrator reviews the current diff against the original plan.
 8. `@code-reviewer` is used only when independent review is justified by risk or requested by the user.

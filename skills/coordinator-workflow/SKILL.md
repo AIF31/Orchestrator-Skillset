@@ -1,6 +1,6 @@
 ---
 name: coordinator-workflow
-description: Model-agnostic planner-worker-review workflow for OpenCode coding tasks. Plan with plan-orchestrator, investigate with explore/scout, delegate bounded implementation to fullstack-worker, use repair-worker for bugs/tests/build failures, and optionally use code-reviewer as a costly independent review gate.
+description: Model-agnostic planner-worker-review workflow for OpenCode coding tasks. Plan with plan-orchestrator, investigate with explore/scout, delegate bounded feature-scoped implementation to one or more fullstack-workers as needed, use repair-worker for bugs/tests/build failures, and optionally use code-reviewer as a costly independent review gate.
 license: MIT
 compatibility: opencode
 metadata:
@@ -32,8 +32,8 @@ Operate in this loop:
 6. Produce a bounded implementation plan.
 7. Define success criteria and verification steps before implementation.
 8. Delegate implementation only after the plan is clear and approval has been given, unless the user has already explicitly authorized implementation.
-9. Use exactly one implementation worker per change-set.
-10. Use `@fullstack-worker` for normal implementation work.
+9. Use as many implementation workers as necessary when the plan decomposes into independent, precisely scoped features or change-sets.
+10. Use `@fullstack-worker` for normal implementation work, with one clear feature scope per worker.
 11. Use `@repair-worker` for bugs, tests, lint, typecheck, build, CI failures, and correction loops.
 12. Review the worker output and current git diff against the original plan.
 13. Use `@code-reviewer` only as an optional costly independent review gate for high-risk or user-requested reviews.
@@ -54,8 +54,8 @@ Responsibilities:
 - Decompose the task.
 - Identify affected files.
 - Define success criteria.
-- Choose the implementation worker.
-- Enforce one active implementation worker per change-set.
+- Choose the implementation worker or workers.
+- Assign each implementation worker a precise, non-overlapping feature scope.
 - Review the final diff against the original plan.
 - Prevent scope creep.
 - Decide whether optional `@code-reviewer` is worth the cost.
@@ -171,23 +171,28 @@ Tests / verification:
 
 Risks:
 
-Delegation target:
-- @fullstack-worker for normal implementation
+Delegation targets:
+- One or more @fullstack-worker agents for normal implementation, split by precise non-overlapping feature scope when useful
 - @repair-worker for bug/test/build/lint/typecheck/CI repair or correction loops
 - @code-reviewer only for optional costly independent review
 
-Worker prompt:
+Worker prompt(s):
 ```
 
 ## Delegation Prompt Templates
 
 ### Normal implementation
 
+For parallel feature work, create one prompt per `@fullstack-worker`. Each prompt must name the exact feature scope, expected files or boundaries where known, constraints, and verification for that worker. Do not give two workers overlapping ownership unless explicitly coordinating a handoff.
+
 ```text
 @fullstack-worker Implement the approved plan exactly.
 
 Goal:
 [goal]
+
+Feature scope:
+[precise non-overlapping feature or change-set assigned to this worker]
 
 Plan:
 [steps]
@@ -270,6 +275,26 @@ Check:
 If not ready, provide the smallest correction prompt for @fullstack-worker or @repair-worker.
 Use @code-reviewer only if independent review is justified by risk or user request.
 ```
+
+## Karpathy-Inspired Coding Rules
+
+These rules are adapted from `https://github.com/multica-ai/andrej-karpathy-skills/blob/main/skills/karpathy-guidelines/SKILL.md` and apply to the orchestrator and every delegated worker.
+
+### Think Before Coding
+
+Do not assume silently. Surface uncertainty, assumptions, and tradeoffs before implementation. If multiple interpretations exist, choose the smallest safe path or ask a concise clarifying question.
+
+### Simplicity First
+
+Use the minimum code required. Do not add speculative abstractions, future-proofing, configurability, or unrelated features.
+
+### Surgical Changes
+
+Touch only what the request requires. Do not refactor adjacent code. Match existing style. Remove only unused code introduced by the current change.
+
+### Goal-Driven Execution
+
+Every plan step must have a verification method. Convert bugs into reproducing checks when feasible. Loop until success criteria are met or a blocker is reported.
 
 ## Safety Gates
 
