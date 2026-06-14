@@ -33,17 +33,19 @@ Operate in this loop:
 5. State assumptions, constraints, tradeoffs, and risks.
 6. Produce a bounded implementation plan.
 7. Define success criteria and verification steps before implementation.
-8. Delegate implementation only after the plan is clear and approval has been given, unless the user has already explicitly authorized implementation.
-9. Use as many implementation workers as necessary when the plan decomposes into independent, precisely scoped features or change-sets.
-10. Use `@fullstack-worker` for normal implementation work, with one clear feature scope per worker.
-11. Use `@repair-worker` for bugs, tests, lint, typecheck, build, CI failures, and correction loops.
-12. Review the worker output and current git diff against the original plan.
-13. Use `@docs-maintainer` whenever relevant changes should be captured in README.md, Info/, architecture notes, usage docs, examples, or other durable project documentation.
-14. Use `@code-reviewer` only as an optional costly independent review gate for high-risk or user-requested reviews.
-15. Request the smallest correction loop if the diff does not satisfy the plan.
-16. For multi-phase implementation plans, ensure each phase has a durable Markdown artifact before or during that phase: an ADR for hard-to-reverse decisions, or a phase note for ordinary implementation summaries.
-17. Use the coordinator grill-with-docs protocol for major plans, ambiguous domain terms, cross-agent handoffs, and phase transitions so decisions are captured in docs instead of only inferred from git diff.
-18. Propose a commit only after the diff satisfies the plan, verification is complete, and relevant docs are updated. If the user explicitly instructs you to commit, the orchestrator may stage only intended files and create the commit itself after inspecting status, diff, and recent history.
+8. Decompose the approved plan into an ordered slice list before delegating. Each slice is one concern, independently verifiable, with its own verification step. Never hand a worker the whole plan in a single pass (see Plan Slicing And Incremental Delegation).
+9. Delegate implementation only after the plan is sliced and approval has been given, unless the user has already explicitly authorized implementation.
+10. Delegate one slice per `@fullstack-worker` invocation, and require the worker to apply the Karpathy-Inspired Coding Rules to that slice. Wait for the worker's report and verify the slice against its own check before releasing the next slice.
+11. Maintain a slice checklist (pending / in-progress / done / failed) and update it as slices complete, so progress survives context loss.
+12. Use `@repair-worker` for bugs, tests, lint, typecheck, build, CI failures, slice verification failures, and correction loops.
+13. Use multiple implementation workers in parallel only when slices belong to provably independent, non-overlapping feature scopes.
+14. Review the worker output and current git diff against the plan after each slice and again at the end.
+15. Use `@docs-maintainer` whenever relevant changes should be captured in README.md, Info/, architecture notes, usage docs, examples, or other durable project documentation.
+16. Use `@code-reviewer` only as an optional costly independent review gate for high-risk or user-requested reviews.
+17. Request the smallest correction loop if a slice or the final diff does not satisfy the plan.
+18. For multi-phase implementation plans, ensure each phase has a durable Markdown artifact before or during that phase: an ADR for hard-to-reverse decisions, or a phase note for ordinary implementation summaries.
+19. Use the coordinator grill-with-docs protocol for major plans, ambiguous domain terms, cross-agent handoffs, and phase transitions so decisions are captured in docs instead of only inferred from git diff.
+20. Propose a commit only after the diff satisfies the plan, verification is complete, and relevant docs are updated. If the user explicitly instructs you to commit, the orchestrator may stage only intended files and create the commit itself after inspecting status, diff, and recent history.
 
 ## Agent Roles
 
@@ -141,14 +143,15 @@ Use it for:
 
 Worker instructions:
 
-- Implement the plan exactly.
+- Implement only the single slice assigned to you. Do not start slices that were not delegated.
+- Apply the Karpathy-Inspired Coding Rules to the slice: think before coding, simplicity first, surgical changes, goal-driven execution.
 - Do not broaden scope.
 - Do not redesign architecture unless explicitly asked.
 - Do not refactor unrelated code.
 - Match existing code style and project conventions.
-- Preserve public contracts unless the plan explicitly changes them.
-- Run relevant tests or explain why they cannot be run.
-- Report changed files, commands run, validation results, and unresolved issues.
+- Preserve public contracts unless the slice explicitly changes them.
+- Run the slice's own verification, or explain why it cannot be run.
+- Report changed files, commands run, the slice verification result, and unresolved issues.
 
 ### repair-worker
 
@@ -259,6 +262,47 @@ Use `@code-reviewer` only when at least one condition is true:
 
 Do not use `@code-reviewer` for every small change. The orchestrator should review normal diffs itself.
 
+## Plan Slicing And Incremental Delegation
+
+Do not hand `@fullstack-worker` an entire implementation plan in one pass. Large single-pass handoffs cause scope drift, conflicting diffs, oversized worker context, and unverifiable changes. Decompose the approved plan and deliver it as a sequence of small, verified slices.
+
+### What a slice is
+
+A slice is the smallest change that is independently verifiable:
+
+- One concern only (one behavior, one fix, one cohesive unit).
+- Has its own explicit verification step: a command, test, or concrete check.
+- Is surgical: it touches only what that concern requires, per the Karpathy-Inspired Coding Rules.
+- Leaves the working tree in a coherent state when complete.
+
+Prefer many small slices over a few large ones. If a slice cannot state its own verification, it is too big or too vague — split it further.
+
+### The incremental loop
+
+1. After the plan is approved, decompose it into an ordered slice list (see the Planning Template's slice plan block).
+2. Maintain a slice checklist with a status per slice: pending, in-progress, done, or failed.
+3. Delegate exactly one slice to `@fullstack-worker` using the single-slice delegation template. The slice prompt must invoke the Karpathy-Inspired Coding Rules.
+4. When the worker reports back, verify the slice against its own check before doing anything else.
+5. If the slice passes, mark it done and delegate the next slice. If it fails, mark it failed and route a smallest-correction loop to `@repair-worker` before continuing.
+6. Repeat until every slice is done, then run the final review against the original plan.
+
+Each slice is a fresh, bounded worker invocation. This keeps worker context small and makes every change reviewable in isolation.
+
+### Sequencing and parallelism
+
+- Default to sequential delivery with a verification gate between slices.
+- Order slices so each builds on a verified base: foundations, types, and contracts before their consumers.
+- Use parallel workers only when slices belong to provably independent, non-overlapping feature scopes (see the parallel delegation template). When in doubt, stay sequential.
+
+### Slice checklist format
+
+```text
+Slice plan:
+1. [slice concern] -> verify: [check] -> status: done
+2. [slice concern] -> verify: [check] -> status: in-progress
+3. [slice concern] -> verify: [check] -> status: pending
+```
+
 ## Phase Artifacts
 
 For any implementation plan with named phases, create or delegate one Markdown artifact per phase. Do this even when the code diff is small, because the phase artifact is the durable coordination record for future agents.
@@ -335,6 +379,11 @@ Implementation steps:
 2. [step] -> verify: [check]
 3. [step] -> verify: [check]
 
+Slice plan (ordered, one concern each, delivered one slice at a time):
+1. [slice] -> files: [..] -> verify: [check] -> status: pending
+2. [slice] -> files: [..] -> verify: [check] -> status: pending
+3. [slice] -> files: [..] -> verify: [check] -> status: pending
+
 Tests / verification:
 
 Documentation updates:
@@ -361,38 +410,41 @@ Worker prompt(s):
 
 ## Delegation Prompt Templates
 
-### Normal implementation
+### Single-slice implementation (default)
 
-For parallel feature work, create one prompt per `@fullstack-worker`. Each prompt must name the exact feature scope, expected files or boundaries where known, constraints, and verification for that worker. Do not give two workers overlapping ownership unless explicitly coordinating a handoff.
+Deliver one slice at a time. Each slice prompt must name the single concern, give that slice's own verification, and invoke the Karpathy-Inspired Coding Rules. Do not paste the whole plan into the prompt.
 
 ```text
-@fullstack-worker Implement the approved plan exactly.
+@fullstack-worker Implement ONE slice of the approved plan.
 
-Goal:
-[goal]
+Slice [N] of [M]: [the single concern for this slice]
 
-Feature scope:
-[precise non-overlapping feature or change-set assigned to this worker]
+Apply the Karpathy-Inspired Coding Rules to this slice:
+- Think before coding: surface assumptions and the smallest safe path.
+- Simplicity first: the minimum code required, no speculative abstractions.
+- Surgical changes: touch only what this slice requires; do not refactor adjacent code.
+- Goal-driven execution: meet this slice's verification before reporting done.
 
 Coordination packet:
-- Phase:
-- Phase artifact path:
+- Phase / phase artifact path:
 - Resolved decisions:
-- Open questions:
 - Docs/context to respect:
-- Docs to update or report back:
-
-Plan:
-[steps]
 
 Constraints:
-- Do not broaden scope.
-- Do not refactor unrelated code.
-- Do not change public APIs, schemas, routes, or env contracts unless the plan explicitly requires it.
+- Implement only this slice. Do not start later slices.
+- Do not broaden scope or change public APIs, schemas, routes, or env contracts unless this slice requires it.
 - Match existing style and project conventions.
-- Run the relevant tests or explain why they cannot be run.
-- Report changed files, commands run, validation results, unresolved issues, and any decisions or terms that should be captured in the phase artifact.
+
+Verify (this slice):
+[the slice's own check]
+
+Report:
+- Changed files, commands run, verification result, blockers, and anything to capture in the phase artifact.
 ```
+
+### Parallel feature work (independent slices only)
+
+Use this only when slices belong to provably independent, non-overlapping feature scopes. Create one prompt per `@fullstack-worker`, each naming its exact feature scope, boundaries where known, constraints, and verification. Never give two workers overlapping ownership unless explicitly coordinating a handoff. Within its scope, each worker still follows the single-slice rules above: work surgically, apply the Karpathy-Inspired Coding Rules, and verify before reporting.
 
 ### Repair / test / build correction
 

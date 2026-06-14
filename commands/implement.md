@@ -5,11 +5,11 @@ agent: fullstack-worker
 
 Use the coordinator-workflow skill.
 
-Implement the current approved plan exactly using the default model-agnostic fullstack worker path.
+Implement the current approved plan in small, surgical slices — one concern at a time — not in a single pass. Apply the Karpathy-Inspired Coding Rules to each slice (think before coding, simplicity first, surgical changes, goal-driven execution) and verify each slice against its own check before moving to the next.
 
 Constraints:
-- Do not broaden scope.
+- Implement one slice at a time; do not broaden scope or start unrelated slices.
 - Do not refactor unrelated code.
 - Match existing style and project conventions.
-- Run relevant tests when feasible.
-- Report changed files, commands run, validation results, and unresolved issues.
+- Run each slice's relevant verification when feasible.
+- Report changed files, commands run, per-slice verification results, and unresolved issues.
