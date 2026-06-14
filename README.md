@@ -2,16 +2,6 @@
 
 ## OpenCode Coordinator Workflow
 
-<p align="center">
-  <img src="Orchestrator-Skillset.png" alt="Orchestrator-Skillset hero image" width="100%">
-</p>
-
-<p align="center">
-  <a href="https://opencode.ai"><img src="https://img.shields.io/badge/OpenCode-skill-111827?style=for-the-badge" alt="OpenCode skill"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/workflow-model--agnostic-6f42c1?style=for-the-badge" alt="Model agnostic workflow">
-</p>
-
 **OpenCode Coordinator Workflow: a model-agnostic software engineering SOP to plan first, delegate narrowly, repair from evidence, and review before shipping.**
 
 Orchestrator-Skillset turns ad hoc OpenCode coding sessions into a repeatable planner-worker-review system. It separates investigation, implementation, repair, and review into role-based agents so you can swap models without rewriting your operating procedure.
@@ -29,14 +19,14 @@ mkdir -p ~/.config/opencode/skills
 cp -R skills/coordinator-workflow ~/.config/opencode/skills/
 ```
 
-Merge the example agents and commands into your OpenCode config:
+Merge the example agents and permissions into your OpenCode config:
 
 ```bash
 mkdir -p ~/.config/opencode
 cp examples/opencode.model-agnostic-agents.jsonc ~/.config/opencode/opencode.jsonc
 ```
 
-Optional command wrappers:
+Install the workflow slash commands (one file per command):
 
 ```bash
 mkdir -p ~/.config/opencode/commands
@@ -47,16 +37,29 @@ Restart OpenCode after installing or changing skills, agents, commands, or confi
 
 ## Try It
 
-After installing the example config, use the workflow commands:
+After installing the commands, use the workflow slash commands. Each is one file in `commands/`, and each routes to the role-based agent that owns that step:
 
 ```text
 /ship add dark mode support to the settings page
 /bug reproduce and fix the checkout validation error
+/implement build the approved settings-page plan exactly
 /repair fix the failing typecheck
+/fix-review apply only the review fixes from the previous message
 /review review the active diff for security and correctness issues
 /docs update the README and Info/ notes for the new settings workflow
 /graphify-explore map the auth flow and its impact radius
 ```
+
+| Command | Agent | Use for |
+|---------|-------|---------|
+| `/ship` | `plan-orchestrator` | Full plan-first workflow for a feature or change. |
+| `/bug` | `plan-orchestrator` | Bug workflow that gathers evidence then delegates to repair. |
+| `/implement` | `fullstack-worker` | Implement an already-approved plan directly. |
+| `/repair` | `repair-worker` | Deterministic test/lint/typecheck/build/CI repair or a stuck-worker retry. |
+| `/fix-review` | `repair-worker` | Apply only the review fixes from the previous message. |
+| `/review` | `code-reviewer` | Optional independent read-only review of the current diff. |
+| `/docs` | `docs-maintainer` | Update README, Info/ notes, and related docs. |
+| `/graphify-explore` | `explore` | Graph-first repo exploration using a verified `graphify-out/` graph. |
 
 `/graphify-explore` runs graph-first repo exploration: if a verified, up-to-date `graphify-out/` knowledge graph is present it queries that first, otherwise it explores the files normally. (Named `/graphify-explore` to avoid colliding with graphify's own `/graphify` command.)
 
@@ -88,8 +91,8 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 | Component | Path | Purpose |
 |-----------|------|---------|
 | Skill | `skills/coordinator-workflow/SKILL.md` | The installable OpenCode workflow SOP. |
-| Example config | `examples/opencode.model-agnostic-agents.jsonc` | Agent definitions, permissions, reasoning options, and workflow commands. |
-| Command wrappers | `commands/*.md` | Optional shortcuts for implementation, repair, and review flows. |
+| Example config | `examples/opencode.model-agnostic-agents.jsonc` | Agent definitions, permissions, and reasoning options. |
+| Workflow commands | `commands/*.md` | One slash command per file: ship, bug, implement, repair, fix-review, review, docs, graphify-explore. |
 | License | `LICENSE` | MIT license for public reuse. |
 
 ## Agent Roles
@@ -120,9 +123,30 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 
 ## Graphify Graph-First Exploration (Optional)
 
-If the project includes a [`graphify`](https://github.com/safishamsi/graphify) knowledge graph (`graphify-out/`), `@explore` uses it as the first lookup surface — `graphify query`, `graphify path`, and `graphify explain` answer "what connects to what" and impact-radius questions faster than grepping, and `graphify-out/GRAPH_REPORT.md` gives a quick orientation pass.
+[`graphify`](https://github.com/safishamsi/graphify) is a separate, optional tool that turns a codebase into a queryable knowledge graph (`graphify-out/`). This workflow integrates with it but does not require it: when a verified, up-to-date graph is present, `@explore` uses it as the first lookup surface — `graphify query`, `graphify path`, and `graphify explain` answer "what connects to what" and impact-radius questions faster than grepping, and `graphify-out/GRAPH_REPORT.md` gives a quick orientation pass.
 
-The graph is trusted only when verified fresh: either a `graphify hook install` post-commit auto-rebuild hook is installed, or the last commit touching `graphify-out/graph.json` is at or newer than the last commit touching source. If the graph is stale, `@explore` falls back to file-based exploration and flags it (recommend `/graphify . --update`). The integration is optional and graceful — when `graphify-out/` is absent, exploration proceeds exactly as before, and the working tree always remains the source of truth.
+### Why use it with this skill
+
+- **Faster, cheaper exploration.** Graph lookups replace broad grep/file sweeps, so `@explore` spends fewer tokens locating affected files, call paths, and impact radius before a plan is written.
+- **Better impact analysis.** `graphify path "A" "B"` and `graphify explain "X"` surface dependency and call relationships that are easy to miss with text search, which tightens the orchestrator's "affected files" and risk sections.
+- **No API cost for code.** Graphify extracts code locally via tree-sitter (AST), so building and refreshing the graph for a code-only repo runs fully offline with no API key.
+- **Stays optional and safe.** When `graphify-out/` is absent or stale, exploration falls back to normal file scanning — the working tree always remains the source of truth.
+
+### Install graphify
+
+See the [official graphify repository](https://github.com/safishamsi/graphify) for full docs. The PyPI package is `graphifyy` (double-y) and requires Python 3.10+:
+
+```bash
+uv tool install graphifyy   # recommended; or: pipx install graphifyy / pip install graphifyy
+graphify .                  # build the graph -> writes graphify-out/
+graphify hook install       # optional: rebuild graph.json from the AST after every commit (no API cost)
+```
+
+Code-only extraction needs no API key; semantic processing of docs, PDFs, or images requires an LLM backend (see the graphify docs).
+
+### How freshness is verified
+
+The graph is trusted only when verified fresh: either a `graphify hook install` post-commit auto-rebuild hook is installed, or the last commit touching `graphify-out/graph.json` is at or newer than the last commit touching source. If the graph is stale, `@explore` falls back to file-based exploration and flags it (recommend `/graphify . --update`). When `graphify-out/` is absent, exploration proceeds exactly as before.
 
 ## Coordination And Phase Artifacts
 
@@ -249,11 +273,14 @@ The example config allows `@fullstack-worker` to run standard verification comma
 ├── README.md
 ├── LICENSE
 ├── commands/
-│   ├── document.md
+│   ├── bug.md
+│   ├── docs.md
 │   ├── fix-review.md
 │   ├── graphify-explore.md
-│   ├── implement-secondary.md
-│   └── implement.md
+│   ├── implement.md
+│   ├── repair.md
+│   ├── review.md
+│   └── ship.md
 ├── examples/
 │   └── opencode.model-agnostic-agents.jsonc
 └── skills/

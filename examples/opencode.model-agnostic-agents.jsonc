@@ -259,32 +259,5 @@
       "rm *": "ask",
       "sudo *": "ask"
     }
-  },
-  "command": {
-    "ship": {
-      "description": "Run the model-agnostic plan-first engineering workflow through the orchestrator.",
-      "agent": "plan-orchestrator",
-      "template": "Handle this engineering task end-to-end. First inspect only the context needed. Use @explore for repo uncertainty and @scout for dependency/docs uncertainty. Then propose a bounded plan and wait for approval before edits unless implementation was already explicitly authorized. Use exactly one implementation worker per change-set. Task: $ARGUMENTS"
-    },
-    "bug": {
-      "description": "Run the bug workflow through the orchestrator, with repair-worker as the preferred implementation target.",
-      "agent": "plan-orchestrator",
-      "template": "Run the bug workflow for this issue. Gather evidence and likely repro path, produce a bounded plan, and delegate to @repair-worker after approval. Issue: $ARGUMENTS"
-    },
-    "repair": {
-      "description": "Run focused test, lint, typecheck, build, or CI repair.",
-      "agent": "repair-worker",
-      "template": "Fix this deterministic validation or repair task with the smallest safe change. Start from evidence, do not broaden scope, run relevant validation, and report changed files and results. Task: $ARGUMENTS"
-    },
-    "review": {
-      "description": "Run optional costly independent review of the current diff or requested files.",
-      "agent": "code-reviewer",
-      "template": "Review the active diff or requested files. Focus on correctness, security, performance, maintainability, test sufficiency, and scope control. Request: $ARGUMENTS"
-    },
-    "docs": {
-      "description": "Update README, Info/ notes, and related project documentation for an approved change or research result.",
-      "agent": "docs-maintainer",
-      "template": "Update project documentation for this change or research result. Keep README.md accurate when relevant, document durable notes under Info/, update related docs, do not edit source code, and report documentation changes made. Task: $ARGUMENTS"
-    }
   }
 }
