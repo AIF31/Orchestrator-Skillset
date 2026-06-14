@@ -55,7 +55,10 @@ After installing the example config, use the workflow commands:
 /repair fix the failing typecheck
 /review review the active diff for security and correctness issues
 /docs update the README and Info/ notes for the new settings workflow
+/graphify-explore map the auth flow and its impact radius
 ```
+
+`/graphify-explore` runs graph-first repo exploration: if a verified, up-to-date `graphify-out/` knowledge graph is present it queries that first, otherwise it explores the files normally. (Named `/graphify-explore` to avoid colliding with graphify's own `/graphify` command.)
 
 Or invoke the agents directly from OpenCode:
 
@@ -94,7 +97,7 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 | Agent | Mode | Responsibility |
 |-------|------|----------------|
 | `plan-orchestrator` | primary | Plans, routes, controls scope, and reviews the final diff. |
-| `explore` | built-in subagent | Reads the repository to find files, patterns, tests, and impact radius. |
+| `explore` | built-in subagent | Reads the repository to find files, patterns, tests, and impact radius; queries a verified `graphify-out/` knowledge graph first when present. |
 | `scout` | subagent | Researches external docs, SDK behavior, dependencies, frameworks, and upstream source. |
 | `fullstack-worker` | subagent | Implements approved frontend, backend, full-stack, docs, config, and refactor plans. |
 | `repair-worker` | subagent | Fixes bugs, tests, lint, typecheck, build, CI, and correction-loop failures from evidence. |
@@ -104,7 +107,7 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 ## How It Works
 
 1. The orchestrator clarifies the smallest useful outcome.
-2. It uses `@explore` for repo uncertainty and `@scout` for version-sensitive external research.
+2. It uses `@explore` for repo uncertainty and `@scout` for version-sensitive external research. When the project carries a verified, up-to-date `graphify-out/` knowledge graph, `@explore` queries the graph first and falls back to file scanning only when it is missing or stale.
 3. It writes a bounded plan with assumptions, affected files, implementation steps, verification, risks, and worker choice.
 4. It delegates to one or more implementation workers when the work decomposes into precise, non-overlapping feature scopes.
 5. For named phases, it creates or delegates a Markdown phase artifact: an ADR for hard-to-reverse decisions, a phase note for implementation summaries, or an update to an existing canonical phase/changelog doc.
@@ -114,6 +117,12 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 9. The orchestrator reviews the current diff against the original plan and confirms the phase artifact was updated when relevant.
 10. `@docs-maintainer` updates README.md, phase artifacts, Info/ notes, and related docs when the change or research result should be captured durably.
 11. `@code-reviewer` is used only when independent review is justified by risk or requested by the user.
+
+## Graphify Graph-First Exploration (Optional)
+
+If the project includes a [`graphify`](https://github.com/safishamsi/graphify) knowledge graph (`graphify-out/`), `@explore` uses it as the first lookup surface — `graphify query`, `graphify path`, and `graphify explain` answer "what connects to what" and impact-radius questions faster than grepping, and `graphify-out/GRAPH_REPORT.md` gives a quick orientation pass.
+
+The graph is trusted only when verified fresh: either a `graphify hook install` post-commit auto-rebuild hook is installed, or the last commit touching `graphify-out/graph.json` is at or newer than the last commit touching source. If the graph is stale, `@explore` falls back to file-based exploration and flags it (recommend `/graphify . --update`). The integration is optional and graceful — when `graphify-out/` is absent, exploration proceeds exactly as before, and the working tree always remains the source of truth.
 
 ## Coordination And Phase Artifacts
 
@@ -242,6 +251,7 @@ The example config allows `@fullstack-worker` to run standard verification comma
 ├── commands/
 │   ├── document.md
 │   ├── fix-review.md
+│   ├── graphify-explore.md
 │   ├── implement-secondary.md
 │   └── implement.md
 ├── examples/

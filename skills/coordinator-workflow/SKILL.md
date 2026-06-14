@@ -7,6 +7,7 @@ metadata:
   workflow: planner-explore-scout-worker-repair-docs-review
   primary-agent: plan-orchestrator
   repo-investigation: explore
+  graph-investigation: graphify-out (used by explore when present and verified fresh via git commits)
   docs-investigation: scout
   default-worker: fullstack-worker
   repair-worker: repair-worker
@@ -27,7 +28,7 @@ Operate in this loop:
 
 1. Understand the request and identify the smallest useful outcome.
 2. Inspect the repository only as much as needed.
-3. Use `@explore` for read-only repo discovery when affected files, architecture, existing patterns, or impact radius are unclear.
+3. Use `@explore` for read-only repo discovery when affected files, architecture, existing patterns, or impact radius are unclear. If the project carries a verified, up-to-date `graphify-out/` knowledge graph, `@explore` should query it first (see Graphify Graph-First Exploration) and fall back to file scanning only when the graph is absent or stale.
 4. Use `@scout` for read-only external docs, dependency, SDK, framework, or upstream-source research when behavior is version-sensitive.
 5. State assumptions, constraints, tradeoffs, and risks.
 6. Produce a bounded implementation plan.
@@ -85,6 +86,27 @@ Use it for:
 - Answering codebase questions without edits.
 
 Do not use `@explore` for implementation.
+
+#### Graphify Graph-First Exploration
+
+If the project carries a `graphify-out/` knowledge graph (produced by the `graphify` skill, `https://github.com/safishamsi/graphify`), `@explore` should treat a *verified, up-to-date* graph as the first lookup surface before falling back to grep/file reads. The graph answers "what connects to what", call paths, and impact radius far faster than scanning files.
+
+Detection and verification gate (run read-only, in order):
+
+1. **Detect.** Look for a `graphify-out/` directory at the project root containing `graph.json` (the full queryable graph), `GRAPH_REPORT.md` (key concepts, connections, suggested questions), and usually `manifest.json` (tracked source files, relative paths) and `graph.html`. If `graph.json` is absent, skip graphify and explore normally.
+2. **Verify freshness via git commits.** Trust the graph only when at least one holds:
+   - A graphify post-commit auto-rebuild hook is installed (`graphify hook install` adds a post-commit hook that rebuilds `graph.json` from the AST on every commit at no API cost; check for it in `.git/hooks/post-commit` or the repo's git config), **or**
+   - The last commit touching `graphify-out/graph.json` is at or newer than the last commit touching tracked source. A practical check: `git log -1 --format=%cI -- graphify-out/graph.json` versus `git log -1 --format=%cI -- <source dirs>`. If source has commits newer than the graph, the graph is stale.
+   - Also treat the graph as stale if `graph.json` has unresolved merge-conflict markers, or if `git status` shows large uncommitted source changes not yet reflected in the graph.
+3. **Use when fresh.** Query the graph instead of grepping:
+   - `graphify query "what connects auth to the database?"` (add `--graph graphify-out/graph.json` to target a specific graph)
+   - `graphify path "UserService" "DatabasePool"` for call/dependency paths
+   - `graphify explain "RateLimiter"` for a node's role and neighbors
+   - Read `graphify-out/GRAPH_REPORT.md` for an orientation pass and suggested questions
+   - If the project exposes the graph as an MCP server (`python -m graphify.serve graphify-out/graph.json`), prefer its structured tools (`query_graph`, `get_node`, `get_neighbors`, `shortest_path`) when available.
+4. **Fall back when stale or absent.** If the graph fails the freshness gate, do normal file-based exploration and explicitly flag the staleness in the explore report (e.g. "graphify-out/ present but stale — last built before recent source commits; recommend `/graphify . --update` or `/graphify .`"). Never silently trust a stale graph, and never run a rebuild as part of read-only exploration — surface the recommendation to the orchestrator instead.
+
+Always corroborate graph claims against the actual files before they drive an edit; the graph accelerates discovery but the working tree remains the source of truth.
 
 ### scout
 
@@ -303,6 +325,7 @@ Assumptions:
 
 Relevant context:
 - Repo investigation needed: yes/no. If yes, use @explore.
+- Graphify graph available and verified fresh: yes/no/absent. If yes, @explore queries graphify-out/ first; if stale, note it and fall back.
 - External docs/dependency investigation needed: yes/no. If yes, use @scout.
 
 Affected files:
