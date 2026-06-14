@@ -1,5 +1,11 @@
 # Orchestrator-Skillset
 
+<p align="center">
+  <a href="https://opencode.ai"><img src="https://img.shields.io/badge/OpenCode-skill-111827?style=for-the-badge" alt="OpenCode skill"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/workflow-model--agnostic-6f42c1?style=for-the-badge" alt="Model agnostic workflow">
+</p>
+
 ## OpenCode Coordinator Workflow
 
 **OpenCode Coordinator Workflow: a model-agnostic software engineering SOP to plan first, delegate narrowly, repair from evidence, and review before shipping.**
