@@ -16,7 +16,7 @@
 
 Orchestrator-Skillset turns ad hoc OpenCode coding sessions into a repeatable planner-worker-review system. It separates investigation, implementation, repair, and review into role-based agents so you can swap models without rewriting your operating procedure.
 
-Use it when you want OpenCode to behave like a senior engineering lead: inspect only what matters, define success criteria before edits, delegate implementation to as many feature-scoped workers as necessary, and keep destructive actions behind explicit approval.
+Use it when you want OpenCode to behave like a senior engineering lead: inspect only what matters, define success criteria before edits, delegate implementation to as many feature-scoped workers as necessary, capture decisions in durable phase artifacts, and keep destructive actions behind explicit approval.
 
 ## Quickstart
 
@@ -107,11 +107,31 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 2. It uses `@explore` for repo uncertainty and `@scout` for version-sensitive external research.
 3. It writes a bounded plan with assumptions, affected files, implementation steps, verification, risks, and worker choice.
 4. It delegates to one or more implementation workers when the work decomposes into precise, non-overlapping feature scopes.
-5. `@fullstack-worker` handles normal approved implementation work, with one clear feature scope per worker.
-6. `@repair-worker` handles bugs, failed validation, focused corrections, and root-cause loops.
-7. The orchestrator reviews the current diff against the original plan.
-8. `@docs-maintainer` updates README.md, Info/ notes, and related docs when the change or research result should be captured durably.
-9. `@code-reviewer` is used only when independent review is justified by risk or requested by the user.
+5. For named phases, it creates or delegates a Markdown phase artifact: an ADR for hard-to-reverse decisions, a phase note for implementation summaries, or an update to an existing canonical phase/changelog doc.
+6. It sends workers a coordination packet with the phase, artifact path, resolved decisions, open questions, docs/context to respect, and docs to update or report back.
+7. `@fullstack-worker` handles normal approved implementation work, with one clear feature scope per worker, and can run standard verification commands such as lint, typecheck, test, build, check, CSS audit, coverage, and perf checks.
+8. `@repair-worker` handles bugs, failed validation, focused corrections, and root-cause loops.
+9. The orchestrator reviews the current diff against the original plan and confirms the phase artifact was updated when relevant.
+10. `@docs-maintainer` updates README.md, phase artifacts, Info/ notes, and related docs when the change or research result should be captured durably.
+11. `@code-reviewer` is used only when independent review is justified by risk or requested by the user.
+
+## Coordination And Phase Artifacts
+
+The workflow includes a lightweight adaptation of `grill-with-docs` for plan-orchestrator coordination. Before major phases or ambiguous plans, the orchestrator checks existing domain language and decisions in `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, README files, `Info/`, changelogs, and implementation plans. It challenges conflicting terms, cross-checks claims against code/docs, asks one precise question only when exploration cannot answer it, and records resolved decisions in the relevant artifact.
+
+Phase artifacts prevent important context from existing only in worker messages or git diff. Use:
+
+- ADRs for hard-to-reverse architecture, security, runtime, data, dependency, schema, or platform decisions.
+- Phase notes for implementation scope, validation results, handoffs, and follow-ups.
+- Existing canonical docs when the repo already has a phase log, changelog, implementation plan, or milestone file.
+
+The orchestrator remains accountable for ensuring each completed phase has an artifact or explicit canonical-doc update, even when the artifact work is delegated to `@docs-maintainer`.
+
+## Commit Behavior
+
+The orchestrator may stage and commit when the user explicitly asks it to commit, or after it asks and receives approval. Before committing, it must inspect `git status`, `git diff`, and recent `git log`, confirm the correct repository boundary, stage only intended files, and use a concise message matching the repository style.
+
+Workers still do not commit by default. `@fullstack-worker`, `@repair-worker`, and `@docs-maintainer` can stage only when their permission policy asks/approves, and their default posture denies commits. Pushes remain gated.
 
 ## Model-Agnostic By Design
 
@@ -199,7 +219,7 @@ These require explicit approval or are denied by default:
 | Operation | Default posture |
 |-----------|-----------------|
 | `git add *` | ask |
-| `git commit *` | ask or deny for workers |
+| `git commit *` | ask for orchestrator; deny for workers by default |
 | `git push *` | ask or deny for workers |
 | `git checkout *` | ask |
 | `git switch *` | ask |
@@ -210,6 +230,8 @@ These require explicit approval or are denied by default:
 | `git clean *` | deny |
 
 Review these permissions before installing in a different organization or security environment.
+
+The example config allows `@fullstack-worker` to run standard verification commands without extra approval: `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run check`, `npm run css:audit`, `npm run css:audit:strict`, `npm run test:coverage`, and `npm run test:perf`. Package installation and arbitrary `npm *` commands still ask.
 
 ## Repository Structure
 

@@ -40,7 +40,9 @@ Operate in this loop:
 13. Use `@docs-maintainer` whenever relevant changes should be captured in README.md, Info/, architecture notes, usage docs, examples, or other durable project documentation.
 14. Use `@code-reviewer` only as an optional costly independent review gate for high-risk or user-requested reviews.
 15. Request the smallest correction loop if the diff does not satisfy the plan.
-16. Propose a commit only after the diff satisfies the plan, verification is complete, and relevant docs are updated.
+16. For multi-phase implementation plans, ensure each phase has a durable Markdown artifact before or during that phase: an ADR for hard-to-reverse decisions, or a phase note for ordinary implementation summaries.
+17. Use the coordinator grill-with-docs protocol for major plans, ambiguous domain terms, cross-agent handoffs, and phase transitions so decisions are captured in docs instead of only inferred from git diff.
+18. Propose a commit only after the diff satisfies the plan, verification is complete, and relevant docs are updated. If the user explicitly instructs you to commit, the orchestrator may stage only intended files and create the commit itself after inspecting status, diff, and recent history.
 
 ## Agent Roles
 
@@ -56,14 +58,17 @@ Responsibilities:
 - Decompose the task.
 - Identify affected files.
 - Define success criteria.
+- Define the phase artifact required for each implementation phase.
 - Choose the implementation worker or workers.
 - Assign each implementation worker a precise, non-overlapping feature scope.
+- Send each worker a coordination packet: goal, phase, phase artifact path, resolved decisions, open questions, and documentation expectations.
 - Review the final diff against the original plan.
 - Prevent scope creep.
 - Decide whether `@docs-maintainer` is required for durable documentation updates.
 - Decide whether optional `@code-reviewer` is worth the cost.
+- Commit changes when explicitly instructed or after asking for approval, using the commit workflow below.
 
-The orchestrator should prefer planning and review over direct implementation. It should not directly edit source files unless the user explicitly asks or the change is trivial and safe.
+The orchestrator should prefer planning and review over direct implementation. It should not directly edit source files unless the user explicitly asks or the change is trivial and safe. It may run `git add` / `git commit` only when the user explicitly instructs it to commit, or after it asks and receives approval.
 
 ### explore
 
@@ -232,6 +237,57 @@ Use `@code-reviewer` only when at least one condition is true:
 
 Do not use `@code-reviewer` for every small change. The orchestrator should review normal diffs itself.
 
+## Phase Artifacts
+
+For any implementation plan with named phases, create or delegate one Markdown artifact per phase. Do this even when the code diff is small, because the phase artifact is the durable coordination record for future agents.
+
+Use this decision rule:
+
+- ADR: use when the phase locks a hard-to-reverse, security-sensitive, runtime, data, dependency, schema, or architecture decision.
+- Phase note: use when the phase primarily records implementation scope, validation results, package choices, follow-ups, or handoff context.
+- Existing canonical doc update: use when the project already has an explicit phase log, implementation plan, changelog, or milestone file and adding a new standalone note would duplicate it.
+
+The phase artifact should capture:
+
+- Phase name and status.
+- Goal and non-goals.
+- Decisions made and alternatives rejected.
+- Affected surfaces and ownership boundaries.
+- Validation run and known gaps.
+- Follow-ups before the next phase.
+- Worker handoffs and coordination notes that are not obvious from git diff.
+
+Prefer delegating artifact creation/update to `@docs-maintainer`, but the orchestrator remains accountable for ensuring it exists before the phase is marked complete.
+
+## Coordinator Grill-With-Docs Protocol
+
+Use this lightweight adaptation of `grill-with-docs` for plan-orchestrator to worker coordination and user-facing planning. It is the coordinator workflow's built-in decision-capture loop, not a replacement for the standalone skill.
+
+Before major implementation phases, high-risk changes, or ambiguous plans:
+
+1. Look for existing project language and decisions in `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/`, `Info/`, README files, implementation plans, changelogs, and architecture notes.
+2. Challenge terms that conflict with existing docs. If a word is overloaded, propose a precise canonical term.
+3. Cross-check claims against code or docs when feasible. If code contradicts the plan, surface the contradiction before assigning work.
+4. Ask one precise question at a time only when repository exploration cannot answer it.
+5. Record resolved decisions in the relevant phase artifact, ADR, `CONTEXT.md`, changelog, or implementation note.
+6. Do not treat git diff as the only source of truth. Worker reports, resolved assumptions, and user decisions should become durable notes when they affect future work.
+
+Use `CONTEXT.md` only for glossary/domain language. Do not turn it into a spec or implementation log. Use ADRs or phase notes for implementation decisions.
+
+## Commit Workflow
+
+The orchestrator may commit when explicitly instructed by the user, or after asking for and receiving approval. Workers should not commit unless their own permissions and the user explicitly allow it.
+
+Before committing:
+
+1. Inspect `git status --short`, `git diff`, and `git log --oneline -10` in the correct repository.
+2. Confirm the repository boundary when the workspace contains multiple git repos.
+3. Stage only the files that belong to the approved change. Never stage unrelated dirty files.
+4. Ensure relevant phase artifacts/docs are updated or explicitly deferred.
+5. Use a concise commit message matching repository style.
+
+Never amend, push, force-push, reset, clean, checkout, switch, restore, delete files, or run destructive commands unless the user explicitly requests that exact operation and the safety policy allows it.
+
 ## Planning Template
 
 Before implementation, produce:
@@ -263,6 +319,12 @@ Documentation updates:
 - Info/ note needed: yes/no
 - Other docs/examples update needed: yes/no
 
+Phase artifact:
+- Needed: yes/no
+- Type: ADR / phase note / existing canonical doc update
+- Path:
+- Owner: plan-orchestrator / docs-maintainer
+
 Risks:
 
 Delegation targets:
@@ -289,6 +351,14 @@ Goal:
 Feature scope:
 [precise non-overlapping feature or change-set assigned to this worker]
 
+Coordination packet:
+- Phase:
+- Phase artifact path:
+- Resolved decisions:
+- Open questions:
+- Docs/context to respect:
+- Docs to update or report back:
+
 Plan:
 [steps]
 
@@ -298,7 +368,7 @@ Constraints:
 - Do not change public APIs, schemas, routes, or env contracts unless the plan explicitly requires it.
 - Match existing style and project conventions.
 - Run the relevant tests or explain why they cannot be run.
-- Report changed files, commands run, validation results, and unresolved issues.
+- Report changed files, commands run, validation results, unresolved issues, and any decisions or terms that should be captured in the phase artifact.
 ```
 
 ### Repair / test / build correction
@@ -330,6 +400,13 @@ Constraints:
 Context:
 [what changed / research result / implementation summary]
 
+Coordination packet:
+- Phase:
+- Phase artifact type/path:
+- Decisions to capture:
+- Terms/glossary updates needed:
+- Follow-ups for next phase:
+
 Documentation scope:
 - README.md: [yes/no and what to update]
 - Info/: [yes/no and durable note topic]
@@ -341,7 +418,7 @@ Constraints:
 - Prefer updating existing docs over creating duplicates.
 - Keep README concise; move detailed notes to Info/ or docs folders.
 - Do not invent unsupported features, commands, tests, or guarantees.
-- Report docs changed, Info/ entries created or updated, README changes, commands run, and remaining stale-doc risks.
+- Report docs changed, Info/ entries created or updated, README changes, phase artifact status, commands run, and remaining stale-doc risks.
 ```
 
 ### Optional independent review
@@ -373,7 +450,7 @@ Return:
 
 ## Review Template
 
-After worker completion, review before asking for commit:
+After worker completion, review before asking for or creating a commit:
 
 ```text
 Review the current git diff against the original plan.
@@ -386,6 +463,8 @@ Check:
 - Are public contracts unchanged unless planned?
 - Are tests added or updated where appropriate?
 - Are README.md, Info/, and related docs updated when relevant?
+- Does every completed phase have a phase artifact, ADR, or explicit canonical-doc update?
+- Were worker coordination decisions captured outside the git diff when they affect future work?
 - Were relevant tests run?
 - Are there obvious security, correctness, accessibility, performance, or maintainability issues?
 - Is the change ready to commit?
@@ -445,6 +524,11 @@ Changed files:
 
 Verification run:
 
+Phase artifact:
+- Path:
+- Status:
+- Decisions captured:
+
 Documentation updates:
 - README.md:
 - Info/:
@@ -459,6 +543,11 @@ Independent review:
 - Reason:
 
 Ready to commit: yes/no
+
+Commit:
+- Created: yes/no
+- Hash:
+- Message:
 
 Suggested commit message:
 ```
