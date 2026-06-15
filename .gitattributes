@@ -1,3 +1,6 @@
-# Shell scripts must use LF so they run under bash/WSL/macOS regardless of
-# the checkout platform's autocrlf setting.
+# Normalize all text files to LF in the repo and on checkout, so the project
+# stays consistent whether edited from WSL/Linux/macOS or Windows tooling.
+* text=auto eol=lf
+
+# Shell scripts must be LF to run under bash regardless of platform.
 *.sh text eol=lf
