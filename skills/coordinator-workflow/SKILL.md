@@ -230,6 +230,35 @@ Reviewer instructions:
 - State whether the implementation stayed within scope.
 - Provide the smallest correction prompt when not ready.
 
+## Deep Planning Escalation (Optional)
+
+For the kickoff of a large or high-stakes project, an optional heavyweight
+planning agent can create the master plan before the normal loop begins. This is
+an escalation layer, not part of the default workflow.
+
+- The deep-planning agent (example: `plan-architect`, backed by a multi-model
+  deliberation model) is read-only on product code. It creates, discusses, and
+  redlines a **detailed but general** strategic plan: chosen architecture,
+  rejected alternatives, a module/seam map, ordered phases, risks, and a
+  verification strategy. It deliberately stops at **phase granularity**.
+- It does **not** slice, assign workers, or implement. It writes exactly one
+  durable plan artifact (an ADR under `docs/adr/` for hard-to-reverse decisions,
+  otherwise a phase note under `Info/`) ending with a Handoff Packet, then hands
+  off to `@plan-orchestrator`.
+- `@plan-orchestrator` **ingests** that artifact as the approved strategic plan
+  instead of re-planning: it validates the plan against the current tree,
+  decomposes each phase into slices, assigns workers using the handoff's routing
+  intent, and runs the normal slice -> worker -> review loop. Slicing and
+  per-slice worker assignment remain the orchestrator's job.
+- Use this only when multi-model critique is worth the extra cost (architecture
+  decisions, conflicting external docs, security/data/migration-heavy designs,
+  release-critical kickoffs). Avoid it for routine features, small changes, and
+  deterministic repair.
+
+The escalation agent is provider-specific by nature; keep it optional and out of
+the default config. See `Info/FUSION_PLANNING_AGENT.md` and
+`examples/opencode.fusion-planning-agent.jsonc` for a concrete example.
+
 ## Worker Selection Rule
 
 Default to `@fullstack-worker`.

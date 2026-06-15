@@ -10,6 +10,9 @@
 # Usage:
 #   ./scripts/install.sh            # global install (~/.config/opencode)
 #   ./scripts/install.sh --project  # project install (./.opencode)
+#   ./scripts/install.sh --fusion   # also print merge steps for the optional
+#                                   # Fusion deep-planning agent (plan-architect)
+# Flags may be combined in any order.
 #
 set -euo pipefail
 
@@ -17,9 +20,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 TARGET="$HOME/.config/opencode"
-if [[ "${1:-}" == "--project" ]]; then
-  TARGET="$(pwd)/.opencode"
-fi
+FUSION=0
+for arg in "$@"; do
+  case "$arg" in
+    --project) TARGET="$(pwd)/.opencode" ;;
+    --fusion)  FUSION=1 ;;
+    *) echo "Unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
 
 echo "Installing Orchestrator-Skillset into: $TARGET"
 mkdir -p "$TARGET/skills" "$TARGET/commands" "$TARGET/prompts"
@@ -52,6 +60,18 @@ else
   echo
   echo "No existing config found; installed the example config to:"
   echo "  $CONFIG"
+fi
+
+if [[ "$FUSION" -eq 1 ]]; then
+  FUSION_EXAMPLE="$REPO_DIR/examples/opencode.fusion-planning-agent.jsonc"
+  echo
+  echo "Optional Fusion deep-planning agent (plan-architect):"
+  echo "  The prompt was installed to $TARGET/prompts/plan-architect.md."
+  echo "  Merge the single \"plan-architect\" agent entry from this template into"
+  echo "  the \"agent\" block of your config (it is never merged automatically):"
+  echo "    $FUSION_EXAMPLE"
+  echo "  Requires an OpenRouter provider with a key and that openrouter/fusion"
+  echo "  resolves. See Info/FUSION_PLANNING_AGENT.md for cost and beta caveats."
 fi
 
 echo

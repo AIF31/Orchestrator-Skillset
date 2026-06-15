@@ -1,0 +1,63 @@
+{
+  // ===========================================================================
+  // OPTIONAL: Fusion-backed deep-planning agent (merge template).
+  //
+  // This is NOT a drop-in config. Merge the single "plan-architect" entry below
+  // into the "agent" block of your existing opencode.jsonc (the one produced
+  // from examples/opencode.model-agnostic-agents.jsonc). Keep your existing
+  // providers, models, permissions, MCP servers, and default_agent untouched.
+  //
+  // `plan-architect` is the one intentionally provider-specific agent: its value
+  // comes from OpenRouter Fusion's multi-model deliberation. The agent name
+  // stays role-based; Fusion lives only in the `model` field. It is read-only on
+  // product code, used ONLY for initial big-project plan creation, and hands off
+  // to `plan-orchestrator` via a durable plan artifact. See
+  // Info/FUSION_PLANNING_AGENT.md for rationale, cost (~4-5x a single
+  // completion), and the beta caveat.
+  //
+  // Prerequisite: your OpenRouter provider must be configured with a key, and
+  // `openrouter/fusion` must resolve in your OpenCode install. Confirm before
+  // relying on this agent.
+  // ===========================================================================
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "plan-architect": {
+      "description": "Optional Fusion-backed deep-planning agent for INITIAL big-project plan creation, discussion, and redlining. Read-only on product code; never implements and never slices. Produces a durable strategic plan artifact (architecture, phases, module/seam map, risks) and hands off to plan-orchestrator, which slices and delegates.",
+      "mode": "primary",
+      "model": "openrouter/fusion",
+      "temperature": 0.1,
+      "prompt": "{file:./prompts/plan-architect.md}",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "lsp": "allow",
+        // edit is allowed but the prompt restricts it to planning artifacts only
+        // (the plan ADR/phase note and CONTEXT.md) — never source, tests, config,
+        // schemas, or package files. Same prompt-enforced posture as docs-maintainer.
+        "edit": "allow",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git diff": "allow",
+          "git diff *": "allow",
+          "git log": "allow",
+          "git log *": "allow",
+          "git show": "allow",
+          "git show *": "allow"
+        },
+        "task": {
+          "*": "deny",
+          "explore": "allow",
+          "scout": "allow"
+        },
+        "webfetch": "ask",
+        "websearch": "ask",
+        "external_directory": "ask",
+        "doom_loop": "ask"
+      }
+    }
+  }
+}

@@ -117,6 +117,7 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 | Skill | `skills/coordinator-workflow/SKILL.md` | The installable OpenCode workflow SOP. |
 | Example config | `examples/opencode.model-agnostic-agents.jsonc` | Agent definitions, permissions, and reasoning options. |
 | Workflow commands | `commands/*.md` | One slash command per file: ship, bug, implement, repair, fix-review, review, docs, graphify-explore. |
+| Optional Fusion planning agent | `examples/opencode.fusion-planning-agent.jsonc`, `examples/prompts/plan-architect.md`, `Info/FUSION_PLANNING_AGENT.md` | Optional Fusion-backed `plan-architect` for big-project kickoff. Not installed by default. |
 | License | `LICENSE` | MIT license for public reuse. |
 
 ## Agent Roles
@@ -130,6 +131,7 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 | `repair-worker` | subagent | Fixes bugs, tests, lint, typecheck, build, CI, and correction-loop failures from evidence. |
 | `docs-maintainer` | subagent | Keeps README.md, Info/ research notes, architecture docs, usage docs, and examples accurate after relevant changes. |
 | `code-reviewer` | subagent | Performs optional read-only independent review for high-risk or user-requested checks. |
+| `plan-architect` | primary (optional) | Optional Fusion-backed deep-planning agent for big-project kickoff. Read-only; creates the strategic plan and hands off to `plan-orchestrator`. Not installed by default. |
 
 ## How It Works
 
@@ -171,6 +173,36 @@ Code-only extraction needs no API key; semantic processing of docs, PDFs, or ima
 ### How freshness is verified
 
 The graph is trusted only when verified fresh: either a `graphify hook install` post-commit auto-rebuild hook is installed, or the last commit touching `graphify-out/graph.json` is at or newer than the last commit touching source. If the graph is stale, `@explore` falls back to file-based exploration and flags it (recommend `/graphify . --update`). When `graphify-out/` is absent, exploration proceeds exactly as before.
+
+## Optional: Deep Planning Escalation (`plan-architect`)
+
+For the kickoff of a large or high-stakes project, an optional heavyweight
+planning agent can create the master plan before the normal loop begins.
+`plan-architect` is a read-only primary agent backed by
+[OpenRouter Fusion](https://openrouter.ai/docs/guides/routing/routers/fusion-router)
+(multi-model deliberation). It is **not** the default workflow and **not**
+installed by default.
+
+- It creates, discusses, and redlines a **detailed but general** strategic plan
+  — chosen architecture, rejected alternatives, a module/seam map, ordered
+  phases, risks, and verification strategy — and stops at phase granularity.
+- It does not slice, assign workers, or implement. It writes one durable plan
+  artifact (an ADR under `docs/adr/`, or a phase note under `Info/`) ending with
+  a Handoff Packet.
+- `@plan-orchestrator` ingests that artifact as the approved plan, then
+  decomposes each phase into slices and runs the normal slice -> worker ->
+  review loop. Slicing stays with the orchestrator.
+
+Use it when multi-model critique is worth the cost (architecture decisions,
+conflicting external docs, security/data/migration-heavy designs,
+release-critical kickoffs); avoid it for routine work. It is provider-specific
+by nature and costs roughly 4–5× a single completion per heavy turn.
+
+Install it by merging `examples/opencode.fusion-planning-agent.jsonc` into your
+config (or run the installer with `--fusion`). The agent prompt lives in
+`examples/prompts/plan-architect.md`. See
+[`Info/FUSION_PLANNING_AGENT.md`](Info/FUSION_PLANNING_AGENT.md) for rationale,
+cost, operating limits, and the beta caveat.
 
 ## Coordination And Phase Artifacts
 
@@ -303,6 +335,8 @@ The example config allows `@fullstack-worker` to run standard verification comma
 .
 ├── README.md
 ├── LICENSE
+├── Info/
+│   └── FUSION_PLANNING_AGENT.md          # optional Fusion planning agent notes
 ├── commands/
 │   ├── bug.md
 │   ├── docs.md
@@ -313,7 +347,18 @@ The example config allows `@fullstack-worker` to run standard verification comma
 │   ├── review.md
 │   └── ship.md
 ├── examples/
-│   └── opencode.model-agnostic-agents.jsonc
+│   ├── opencode.model-agnostic-agents.jsonc
+│   ├── opencode.fusion-planning-agent.jsonc   # optional, merge template
+│   └── prompts/
+│       ├── code-reviewer.md
+│       ├── docs-maintainer.md
+│       ├── fullstack-worker.md
+│       ├── plan-architect.md             # optional Fusion planning agent prompt
+│       ├── plan-orchestrator.md
+│       ├── repair-worker.md
+│       └── scout.md
+├── scripts/
+│   └── install.sh
 └── skills/
     └── coordinator-workflow/
         └── SKILL.md
