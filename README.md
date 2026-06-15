@@ -29,6 +29,7 @@ prompts, and **backs up** any existing config instead of overwriting it:
 ```bash
 ./scripts/install.sh            # global install (~/.config/opencode)
 # ./scripts/install.sh --project  # project install (./.opencode)
+# ./scripts/install.sh --fusion   # also print opt-in steps for plan-architect
 ```
 
 Prefer to do it by hand? Install the skill, commands, and agent prompts (this
@@ -287,6 +288,31 @@ Use this while editing the skill locally:
 mkdir -p ~/.config/opencode/skills
 ln -s "$(pwd)/skills/coordinator-workflow" ~/.config/opencode/skills/coordinator-workflow
 ```
+
+### Optional Deep Planning Agent
+
+Do nothing if you do not want the Fusion-backed `plan-architect` agent. The
+default install commands above copy its prompt file with the other prompts, but
+they do **not** enable the agent unless you also merge its config entry.
+
+To enable it globally or per project, run the installer with `--fusion`:
+
+```bash
+./scripts/install.sh --fusion
+# or:
+./scripts/install.sh --project --fusion
+```
+
+That still does not overwrite your config or enable Fusion automatically. It
+prints the opt-in merge step for `examples/opencode.fusion-planning-agent.jsonc`.
+Merge both pieces from that template into your installed `opencode.jsonc`:
+
+- `agent.plan-architect`
+- `provider.openrouter.models["openrouter/fusion"]`
+
+The agent also requires your OpenCode OpenRouter provider to have a working API
+key and access to the beta `openrouter/fusion` alias. Restart OpenCode after the
+merge.
 
 ## Configuration
 
