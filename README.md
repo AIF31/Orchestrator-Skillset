@@ -16,27 +16,45 @@ Use it when you want OpenCode to behave like a senior engineering lead: inspect 
 
 ## Quickstart
 
-Clone the repository and install the skill globally:
+Clone the repository:
 
 ```bash
 git clone git@github.com:AIF31/Orchestrator-Skillset.git
 cd Orchestrator-Skillset
-mkdir -p ~/.config/opencode/skills
+```
+
+The fastest safe path is the installer. It copies the skill, commands, and agent
+prompts, and **backs up** any existing config instead of overwriting it:
+
+```bash
+./scripts/install.sh            # global install (~/.config/opencode)
+# ./scripts/install.sh --project  # project install (./.opencode)
+```
+
+Prefer to do it by hand? Install the skill, commands, and agent prompts (this
+does **not** touch your existing config):
+
+```bash
+mkdir -p ~/.config/opencode/skills ~/.config/opencode/commands ~/.config/opencode/prompts
 cp -R skills/coordinator-workflow ~/.config/opencode/skills/
-```
-
-Merge the example agents and permissions into your OpenCode config:
-
-```bash
-mkdir -p ~/.config/opencode
-cp examples/opencode.model-agnostic-agents.jsonc ~/.config/opencode/opencode.jsonc
-```
-
-Install the workflow slash commands (one file per command):
-
-```bash
-mkdir -p ~/.config/opencode/commands
 cp commands/*.md ~/.config/opencode/commands/
+cp examples/prompts/*.md ~/.config/opencode/prompts/
+```
+
+Then add the agents and permissions to your OpenCode config by **merging** the
+example into your existing `~/.config/opencode/opencode.jsonc`:
+
+> ⚠️ The example config is a **merge template**, not a drop-in file. Do not copy
+> it over an existing `opencode.jsonc` — that overwrites your providers, models,
+> permissions, MCP servers, and commands. Open both files and merge the `agent`,
+> `default_agent`, and `permission` blocks by hand, or run `scripts/install.sh`,
+> which backs up your config first. The agent prompts are referenced via
+> `{file:./prompts/*.md}`, so keep a `prompts/` directory next to your config.
+
+If you have no `opencode.jsonc` yet, you can copy the example directly:
+
+```bash
+cp examples/opencode.model-agnostic-agents.jsonc ~/.config/opencode/opencode.jsonc
 ```
 
 Restart OpenCode after installing or changing skills, agents, commands, or config.
@@ -200,14 +218,19 @@ The included example uses role-based defaults and reasoning options:
 Use this when you want the workflow available in every project:
 
 ```bash
-mkdir -p ~/.config/opencode/skills ~/.config/opencode/commands
+mkdir -p ~/.config/opencode/skills ~/.config/opencode/commands ~/.config/opencode/prompts
 cp -R skills/coordinator-workflow ~/.config/opencode/skills/
 cp commands/*.md ~/.config/opencode/commands/
+cp examples/prompts/*.md ~/.config/opencode/prompts/
 ```
 
-Then merge or copy the example config:
+Then **merge** the `agent`, `default_agent`, and `permission` blocks from the
+example into your existing config. Only copy the file directly if you have no
+`~/.config/opencode/opencode.jsonc` yet (copying over an existing one overwrites
+your providers, models, permissions, and MCP servers):
 
 ```bash
+# Only when no opencode.jsonc exists yet:
 cp examples/opencode.model-agnostic-agents.jsonc ~/.config/opencode/opencode.jsonc
 ```
 
@@ -216,9 +239,11 @@ cp examples/opencode.model-agnostic-agents.jsonc ~/.config/opencode/opencode.jso
 Use this when a single repository should carry the workflow:
 
 ```bash
-mkdir -p .opencode/skills .opencode/commands
+mkdir -p .opencode/skills .opencode/commands .opencode/prompts
 cp -R skills/coordinator-workflow .opencode/skills/
 cp commands/*.md .opencode/commands/
+cp examples/prompts/*.md .opencode/prompts/
+# Only when the project has no .opencode/opencode.jsonc yet (otherwise merge by hand):
 cp examples/opencode.model-agnostic-agents.jsonc .opencode/opencode.jsonc
 ```
 

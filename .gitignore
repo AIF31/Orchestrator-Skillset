@@ -1,0 +1,15 @@
+# Node tooling (added once package.json / scripts land)
+node_modules/
+npm-debug.log*
+
+# Graphify output
+graphify-out/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor cruft
+*.swp
+.idea/
+.vscode/
