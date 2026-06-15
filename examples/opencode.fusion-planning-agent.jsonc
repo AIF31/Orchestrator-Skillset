@@ -16,15 +16,25 @@
   // completion), and the beta caveat.
   //
   // Prerequisite: your OpenRouter provider must be configured with a key, and
-  // `openrouter/fusion` must resolve in your OpenCode install. Confirm before
-  // relying on this agent.
+  // OpenRouter Fusion must be available on your account (it is beta).
+  //
+  // OpenCode id quirk (important): the Fusion alias is not in the models.dev
+  // catalog, so OpenCode rejects a bare `openrouter/fusion` with "model ... is
+  // not valid". You must register it under `provider.openrouter.models` (see the
+  // "provider" block below) and reference it with the doubled prefix
+  // `openrouter/openrouter/fusion` — OpenCode strips the leading provider segment
+  // and sends `openrouter/fusion` to the OpenRouter API, which is the alias.
+  // Merge BOTH the "agent" entry and the "provider" registration into your config.
   // ===========================================================================
   "$schema": "https://opencode.ai/config.json",
   "agent": {
     "plan-architect": {
       "description": "Optional Fusion-backed deep-planning agent for INITIAL big-project plan creation, discussion, and redlining. Read-only on product code; never implements and never slices. Produces a durable strategic plan artifact (architecture, phases, module/seam map, risks) and hands off to plan-orchestrator, which slices and delegates.",
       "mode": "primary",
-      "model": "openrouter/fusion",
+      // See the header and the "provider" block below: registered as
+      // provider.openrouter.models["openrouter/fusion"], referenced here with the
+      // doubled provider prefix so OpenCode sends "openrouter/fusion" to the API.
+      "model": "openrouter/openrouter/fusion",
       "temperature": 0.1,
       "prompt": "{file:./prompts/plan-architect.md}",
       "permission": {
@@ -57,6 +67,18 @@
         "websearch": "ask",
         "external_directory": "ask",
         "doom_loop": "ask"
+      }
+    }
+  },
+  // Register the Fusion alias so OpenCode accepts the id (it is not in the
+  // models.dev catalog). Merge this into your existing "provider" block rather
+  // than replacing it; the openrouter provider itself is built in.
+  "provider": {
+    "openrouter": {
+      "models": {
+        "openrouter/fusion": {
+          "name": "OpenRouter Fusion"
+        }
       }
     }
   }

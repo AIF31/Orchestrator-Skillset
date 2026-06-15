@@ -92,8 +92,37 @@ These follow from using the `openrouter/fusion` model alias inside OpenCode:
 ## Prerequisite check
 
 Before using the agent, confirm your OpenRouter provider is configured with a
-key and that `openrouter/fusion` resolves in your OpenCode install. If it does
-not, the agent is blocked and nothing else about the feature matters.
+key and that OpenRouter Fusion is available on your account (it is beta). If it
+is not, the agent is blocked and nothing else about the feature matters.
+
+### OpenCode model-id quirk (verified)
+
+The Fusion alias is not in the models.dev catalog, so OpenCode rejects a bare
+`openrouter/fusion` with `Agent ... configured model openrouter/fusion is not
+valid`. Two steps fix it:
+
+1. Register the alias under the provider so it passes catalog validation:
+
+   ```jsonc
+   "provider": {
+     "openrouter": {
+       "models": {
+         "openrouter/fusion": { "name": "OpenRouter Fusion" }
+       }
+     }
+   }
+   ```
+
+2. Reference it from the agent with the doubled provider prefix:
+
+   ```jsonc
+   "model": "openrouter/openrouter/fusion"
+   ```
+
+OpenCode strips the leading `openrouter/` (the provider) and sends
+`openrouter/fusion` as the model to the OpenRouter API, which is the alias.
+`examples/opencode.fusion-planning-agent.jsonc` already includes both pieces.
+Restart OpenCode after editing config.
 
 ## Suggested one-time validation
 
