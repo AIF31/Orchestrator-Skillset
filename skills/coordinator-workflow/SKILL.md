@@ -249,7 +249,10 @@ an escalation layer, not part of the default workflow.
   instead of re-planning: it validates the plan against the current tree,
   decomposes each phase into slices, assigns workers using the handoff's routing
   intent, and runs the normal slice -> worker -> review loop. Slicing and
-  per-slice worker assignment remain the orchestrator's job.
+  per-slice worker assignment remain the orchestrator's job. Ingestion applies
+  only to an explicit handoff for the current request: an ordinary ADR or phase
+  note from a prior or unrelated effort is background context, never an approved
+  plan that overrides the user's current task.
 - Use this only when multi-model critique is worth the extra cost (architecture
   decisions, conflicting external docs, security/data/migration-heavy designs,
   release-critical kickoffs). Avoid it for routine features, small changes, and
