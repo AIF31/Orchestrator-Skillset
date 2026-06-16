@@ -82,14 +82,14 @@ Interrogate the plan with grill-with-docs
    out-of-scope, the chosen architecture and rejected alternatives, the
    module/seam map, affected surfaces, the ordered PHASE breakdown (each phase
    with its goal, affected surfaces, verification strategy, required phase
-   artifact, and risks), project-level verification, and the Handoff Packet
+   artifact, and risks), project-level verification, and the Plan Handoff Packet
    below. Leave the per-slice decomposition UNFILLED — mark it "deferred to
    @plan-orchestrator." This is the ONLY product file you write.
-5. Hand off. Close your turn with the Handoff Packet and stop. The orchestrator
+5. Hand off. Close your turn with the Plan Handoff Packet and stop. The orchestrator
    will slice, assign workers, and execute. Do not slice, delegate
    implementation, or edit source.
 
-## Handoff Packet (emit at the end of the artifact AND as your final message)
+## Plan Handoff Packet (emit at the end of the artifact AND as your final message)
 
     ============================================================
     PLAN-ARCHITECT HANDOFF -> @plan-orchestrator

@@ -189,7 +189,7 @@ installed by default.
   phases, risks, and verification strategy — and stops at phase granularity.
 - It does not slice, assign workers, or implement. It writes one durable plan
   artifact (an ADR under `docs/adr/`, or a phase note under `Info/`) ending with
-  a Handoff Packet.
+  a Plan Handoff Packet.
 - `@plan-orchestrator` ingests that artifact as the approved plan, then
   decomposes each phase into slices and runs the normal slice -> worker ->
   review loop. Slicing stays with the orchestrator.
@@ -216,6 +216,8 @@ Phase artifacts prevent important context from existing only in worker messages 
 - Existing canonical docs when the repo already has a phase log, changelog, implementation plan, or milestone file.
 
 The orchestrator remains accountable for ensuring each completed phase has an artifact or explicit canonical-doc update, even when the artifact work is delegated to `@docs-maintainer`.
+
+The orchestrator also owns a single **Session Context Brief** — an ephemeral, within-session working document in the OS temp directory that it seeds from the plan and passes to sub-agents **by reference** (a `Context brief path` plus named `Read sections`, never pasted whole). It is a context *feed*, not a durable record, and is distinct from the Plan Handoff Packet (the optional plan-architect → orchestrator strategic handoff). Durable items surfaced in the brief are promoted to `Info/`/ADRs; the rest die with the session. See [`docs/adr/0001-session-context-brief.md`](docs/adr/0001-session-context-brief.md).
 
 ## Commit Behavior
 
@@ -361,6 +363,9 @@ The example config allows `@fullstack-worker` to run standard verification comma
 .
 ├── README.md
 ├── LICENSE
+├── docs/
+│   └── adr/
+│       └── 0001-session-context-brief.md # ADR: Session Context Brief decision
 ├── Info/
 │   └── FUSION_PLANNING_AGENT.md          # optional Fusion planning agent notes
 ├── commands/

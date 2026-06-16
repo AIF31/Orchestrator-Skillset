@@ -34,9 +34,9 @@ Operate in this loop:
 6. Produce a bounded implementation plan.
 7. Define success criteria and verification steps before implementation.
 8. Decompose the approved plan into an ordered slice list before delegating. Each slice is one concern, independently verifiable, with its own verification step. Never hand a worker the whole plan in a single pass (see Plan Slicing And Incremental Delegation).
-9. Delegate implementation only after the plan is sliced and approval has been given, unless the user has already explicitly authorized implementation.
+9. Delegate implementation only after the plan is sliced and approval has been given, unless the user has already explicitly authorized implementation. Seed the Session Context Brief from the plan before the first delegation, and pass it to workers by reference (see Session Context Brief).
 10. Delegate one slice per `@fullstack-worker` invocation, and require the worker to apply the Karpathy-Inspired Coding Rules to that slice. Wait for the worker's report and verify the slice against its own check before releasing the next slice.
-11. Maintain a slice checklist (pending / in-progress / done / failed) and update it as slices complete, so progress survives context loss.
+11. Maintain a slice checklist (pending / in-progress / done / failed) and update it as slices complete, so progress survives context loss. After each worker report, refresh the Session Context Brief and promote any durable items to `Info/`/ADR.
 12. Use `@repair-worker` for bugs, tests, lint, typecheck, build, CI failures, slice verification failures, and correction loops.
 13. Use multiple implementation workers in parallel only when slices belong to provably independent, non-overlapping feature scopes.
 14. Review the worker output and current git diff against the plan after each slice and again at the end.
@@ -65,6 +65,7 @@ Responsibilities:
 - Choose the implementation worker or workers.
 - Assign each implementation worker a precise, non-overlapping feature scope.
 - Send each worker a coordination packet: goal, phase, phase artifact path, resolved decisions, open questions, and documentation expectations.
+- Seed the Session Context Brief after planning and refresh it as work proceeds: after each worker report, infer the salient changes (resolved decisions, completed slice, new open questions, follow-ups) and fold them into the brief. Promote `Promotion Candidates` to `Info/`/ADR per the promotion criterion.
 - Review the final diff against the original plan.
 - Prevent scope creep.
 - Decide whether `@docs-maintainer` is required for durable documentation updates.
@@ -243,12 +244,12 @@ an escalation layer, not part of the default workflow.
   verification strategy. It deliberately stops at **phase granularity**.
 - It does **not** slice, assign workers, or implement. It writes exactly one
   durable plan artifact (an ADR under `docs/adr/` for hard-to-reverse decisions,
-  otherwise a phase note under `Info/`) ending with a Handoff Packet, then hands
-  off to `@plan-orchestrator`.
+  otherwise a phase note under `Info/`) ending with a Plan Handoff Packet, then
+  hands off to `@plan-orchestrator`.
 - `@plan-orchestrator` **ingests** that artifact as the approved strategic plan
   instead of re-planning: it validates the plan against the current tree,
-  decomposes each phase into slices, assigns workers using the handoff's routing
-  intent, and runs the normal slice -> worker -> review loop. Slicing and
+  decomposes each phase into slices, assigns workers using the Plan Handoff
+  Packet's routing intent, and runs the normal slice -> worker -> review loop. Slicing and
   per-slice worker assignment remain the orchestrator's job. Ingestion applies
   only to an explicit handoff for the current request: an ordinary ADR or phase
   note from a prior or unrelated effort is background context, never an approved
@@ -372,6 +373,51 @@ Before major implementation phases, high-risk changes, or ambiguous plans:
 
 Use `CONTEXT.md` only for glossary/domain language. Do not turn it into a spec or implementation log. Use ADRs or phase notes for implementation decisions.
 
+## Session Context Brief
+
+The Session Context Brief is a single, orchestrator-owned working document that carries shared context **within the current session**. It is a context *feed*, not a durable record: it borrows its document shape from a handoff document (summary, references-not-duplication, redacted secrets, suggested skills) but exists only to brief in-flight workers, not to resume a future session. It is distinct from the Plan Handoff Packet (the plan-architect -> plan-orchestrator strategic handoff). The word "handoff" never refers to this brief.
+
+### Storage and ownership
+
+- **Owner:** `@plan-orchestrator`. No worker writes or owns the brief.
+- **Location:** the OS temp directory, e.g. `${TMPDIR:-/tmp}/coordinator-brief-<task-slug>.md`. It is ephemeral by design — its lifetime is the task, and it is expected to disappear when the session ends. Durable content is promoted to `Info/`/ADR (see below), never left only in the brief.
+- **Redaction:** never write secrets, API keys, tokens, or PII into the brief. Reference their location instead.
+
+### Canonical sections (stable headings)
+
+The brief uses these exact headings so a coordination packet can name `Read sections:` precisely. Workers read only the sections they are pointed to.
+
+- `Current Slice` — the slice in flight: its concern, scope, and verification.
+- `Resolved Decisions` — settled choices that constrain implementation.
+- `Relevant References` — paths/URLs to PRDs, ADRs, `Info/` notes, and key files (linked, not duplicated).
+- `Open Questions` — unresolved items, each with an owner and a recommended default.
+- `Suggested Skills` — tools/skills the next agent should reach for.
+- `Do Not Touch` — explicit scope fence (non-goals and surfaces that are off-limits).
+- `Promotion Candidates` — items the orchestrator may promote to `Info/`/ADR.
+
+### Header metadata (staleness)
+
+The brief opens with a metadata block so a stale brief is easy to spot:
+
+```text
+Last updated:
+Current phase:
+Current slice:
+Based on git commit:        # short SHA the brief reflects
+Working tree checked at:    # timestamp of the last tree check
+```
+
+### Delivery to workers (by reference)
+
+The orchestrator passes the brief **by reference**, never by pasting the whole file: the coordination packet carries `Context brief path:` and `Read sections:`. The worker reads only the named sections on demand, keeping its prompt bounded.
+
+- **Temp-access fallback:** if a worker cannot read the brief path, it reports that immediately and does not guess. The orchestrator then re-sends only the named sections inline. The file remains the single source of truth; inline delivery is a transport fallback, not a second copy of record.
+- **Working tree is truth:** the brief accelerates coordination but never overrides the repository. Workers corroborate brief claims against the working tree before editing (mirroring the graphify freshness rule).
+
+### Promotion to durable artifacts
+
+The brief is the volatile layer; it never replaces `Info/` notes or ADRs. The orchestrator promotes a `Promotion Candidate` to a phase note (`Info/`) or an ADR when the item affects any of: **future phases, user-facing behavior, architecture, public contracts, dependencies, data/schema, security, validation gaps, or follow-up work**. Items that meet none of these stay in the ephemeral brief and are allowed to die with the session.
+
 ## Commit Workflow
 
 The orchestrator may commit when explicitly instructed by the user, or after asking for and receiving approval. Workers should not commit unless their own permissions and the user explicitly allow it.
@@ -461,11 +507,14 @@ Coordination packet:
 - Phase / phase artifact path:
 - Resolved decisions:
 - Docs/context to respect:
+- Context brief path:
+- Read sections: Current Slice, Resolved Decisions, Do Not Touch, Relevant References
 
 Constraints:
 - Implement only this slice. Do not start later slices.
 - Do not broaden scope or change public APIs, schemas, routes, or env contracts unless this slice requires it.
 - Match existing style and project conventions.
+- Read only the named brief sections. If you cannot read the brief path, report that immediately instead of guessing; the orchestrator will resend the sections inline. Treat the working tree as the source of truth and corroborate brief claims against it before editing.
 
 Verify (this slice):
 [the slice's own check]
@@ -489,9 +538,14 @@ Evidence:
 Expected result:
 [desired behavior or passing validation]
 
+Coordination packet:
+- Context brief path:
+- Read sections: Current Slice, Resolved Decisions, Open Questions
+
 Constraints:
 - Start from the evidence.
 - Identify root cause where feasible.
+- Read only the named brief sections. If you cannot read the brief path, report that immediately; the orchestrator will resend the sections inline. The working tree is the source of truth.
 - Do not broaden scope.
 - Do not delete tests, weaken assertions, disable checks, or ignore errors unless explicitly approved.
 - Match existing style and project conventions.
@@ -513,6 +567,8 @@ Coordination packet:
 - Decisions to capture:
 - Terms/glossary updates needed:
 - Follow-ups for next phase:
+- Context brief path:
+- Read sections: Promotion Candidates, Resolved Decisions, Relevant References
 
 Documentation scope:
 - README.md: [yes/no and what to update]
@@ -535,6 +591,10 @@ Constraints:
 
 Plan:
 [original plan]
+
+Coordination packet:
+- Context brief path:
+- Read sections: Resolved Decisions, Do Not Touch, Current Slice
 
 Focus:
 - Correctness
