@@ -57,11 +57,13 @@ Responsibilities:
 
 - Clarify the goal.
 - Inspect only the necessary repository context.
+- When `graphify-out/` is present, read `graphify-out/GRAPH_REPORT.md` for a quick orientation pass (key concepts and connections) before broad file reading, to save context.
 - Decide whether `@explore` or `@scout` is needed.
 - Decompose the task.
 - Identify affected files.
 - Define success criteria.
 - Define the phase artifact required for each implementation phase.
+- Author the Master Plan / top-level strategic plan document yourself when asked to write one. Do not delegate it to `@docs-maintainer`: you already hold the full planning context, so writing it directly avoids forcing a cold agent to re-derive it. Continue to use `@docs-maintainer` for README, `Info/` notes, and ordinary per-phase notes.
 - Choose the implementation worker or workers.
 - Assign each implementation worker a precise, non-overlapping feature scope.
 - Send each worker a coordination packet: goal, phase, phase artifact path, resolved decisions, open questions, and documentation expectations.
@@ -109,6 +111,8 @@ Detection and verification gate (run read-only, in order):
    - If the project exposes the graph as an MCP server (`python -m graphify.serve graphify-out/graph.json`), prefer its structured tools (`query_graph`, `get_node`, `get_neighbors`, `shortest_path`) when available.
 4. **Fall back when stale or absent.** If the graph fails the freshness gate, do normal file-based exploration and explicitly flag the staleness in the explore report (e.g. "graphify-out/ present but stale — last built before recent source commits; recommend `/graphify . --update` or `/graphify .`"). Never silently trust a stale graph, and never run a rebuild as part of read-only exploration — surface the recommendation to the orchestrator instead.
 
+A graph that a worker just refreshed with `graphify update .` during the current session is fresh for in-session orientation even before the change is committed: the per-slice refresh keeps the working-tree graph current between commits, so the orchestrator and the next worker can trust `GRAPH_REPORT.md` without re-running the git-commit freshness gate. The git-commit gate above still governs a graph inherited from a prior session.
+
 Always corroborate graph claims against the actual files before they drive an edit; the graph accelerates discovery but the working tree remains the source of truth.
 
 ### scout
@@ -151,8 +155,10 @@ Worker instructions:
 - Do not refactor unrelated code.
 - Match existing code style and project conventions.
 - Preserve public contracts unless the slice explicitly changes them.
+- When `graphify-out/` is present, you may read `graphify-out/GRAPH_REPORT.md` (or run `graphify query`/`graphify explain`) to orient on impact radius cheaply instead of scanning many files, keeping your context small. The working tree remains the source of truth.
 - Run the slice's own verification, or explain why it cannot be run.
-- Report changed files, commands run, the slice verification result, and unresolved issues.
+- After the slice's verification passes (slice successful and completed), if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the knowledge graph and `GRAPH_REPORT.md` (AST-only, no LLM cost). Skip it silently when `graphify-out/` is absent; never build a graph from scratch.
+- Report changed files, commands run, the slice verification result, whether `graphify update .` ran, and unresolved issues.
 
 ### repair-worker
 
@@ -178,8 +184,10 @@ Worker instructions:
 - Implement the smallest safe fix.
 - Do not delete tests, weaken assertions, disable checks, or ignore errors unless explicitly approved.
 - Do not opportunistically refactor.
+- When `graphify-out/` is present, you may read `graphify-out/GRAPH_REPORT.md` (or run `graphify query`/`graphify explain`) to orient on impact radius cheaply instead of scanning many files, keeping your context small. The working tree remains the source of truth.
 - Stop and report if the failure indicates a broader product or architecture decision.
-- Report evidence, root cause, changed files, commands run, validation results, unresolved failures, and risks.
+- After the fix is validated, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the knowledge graph and `GRAPH_REPORT.md` (AST-only, no LLM cost). Skip it silently when `graphify-out/` is absent; never build a graph from scratch.
+- Report evidence, root cause, changed files, commands run, validation results, whether `graphify update .` ran, unresolved failures, and risks.
 
 ### docs-maintainer
 
@@ -197,6 +205,7 @@ Use it for:
 Documentation worker instructions:
 
 - Prefer updating existing docs over creating duplicates.
+- Do not author the Master Plan / top-level strategic plan document — the orchestrator owns that. Maintain README, `Info/`, examples, architecture/usage docs, and ordinary phase notes around it.
 - Put durable research notes, implementation summaries, and decisions under `Info/`.
 - Keep README.md concise and current; move long explanations to `Info/` or docs folders.
 - Preserve model-agnostic wording unless documenting a concrete example config.
@@ -356,7 +365,7 @@ The phase artifact should capture:
 - Follow-ups before the next phase.
 - Worker handoffs and coordination notes that are not obvious from git diff.
 
-Prefer delegating artifact creation/update to `@docs-maintainer`, but the orchestrator remains accountable for ensuring it exists before the phase is marked complete.
+Prefer delegating artifact creation/update to `@docs-maintainer`, but the orchestrator remains accountable for ensuring it exists before the phase is marked complete. The exception is the **Master Plan / top-level strategic plan** document: the orchestrator authors that itself (it already holds the planning context) and does not delegate it. Delegation to `@docs-maintainer` still applies to README, `Info/` research notes, and ordinary per-phase notes.
 
 ## Coordinator Grill-With-Docs Protocol
 
@@ -518,9 +527,10 @@ Constraints:
 
 Verify (this slice):
 [the slice's own check]
+- After verification passes, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the graph and `GRAPH_REPORT.md` (no LLM cost). Skip silently if absent.
 
 Report:
-- Changed files, commands run, verification result, blockers, and anything to capture in the phase artifact.
+- Changed files, commands run, verification result, whether `graphify update .` ran, blockers, and anything to capture in the phase artifact.
 ```
 
 ### Parallel feature work (independent slices only)
@@ -550,7 +560,8 @@ Constraints:
 - Do not delete tests, weaken assertions, disable checks, or ignore errors unless explicitly approved.
 - Match existing style and project conventions.
 - Run the relevant validation or explain why it cannot be run.
-- Report evidence, root cause, changed files, commands run, validation results, and unresolved risks.
+- After validation passes, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the graph and `GRAPH_REPORT.md` (no LLM cost). Skip silently if absent.
+- Report evidence, root cause, changed files, commands run, validation results, whether `graphify update .` ran, and unresolved risks.
 ```
 
 ### Documentation maintenance

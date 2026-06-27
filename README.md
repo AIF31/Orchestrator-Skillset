@@ -140,7 +140,7 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 2. It uses `@explore` for repo uncertainty and `@scout` for version-sensitive external research. When the project carries a verified, up-to-date `graphify-out/` knowledge graph, `@explore` queries the graph first and falls back to file scanning only when it is missing or stale.
 3. It writes a bounded plan with assumptions, affected files, implementation steps, verification, risks, and worker choice.
 4. It delegates to one or more implementation workers when the work decomposes into precise, non-overlapping feature scopes.
-5. For named phases, it creates or delegates a Markdown phase artifact: an ADR for hard-to-reverse decisions, a phase note for implementation summaries, or an update to an existing canonical phase/changelog doc.
+5. For named phases, it creates or delegates a Markdown phase artifact: an ADR for hard-to-reverse decisions, a phase note for implementation summaries, or an update to an existing canonical phase/changelog doc. The Master Plan / top-level strategic plan document is authored by the orchestrator itself — it already holds the planning context — while `@docs-maintainer` owns README, `Info/` notes, and ordinary phase notes.
 6. It sends workers a coordination packet with the phase, artifact path, resolved decisions, open questions, docs/context to respect, and docs to update or report back.
 7. `@fullstack-worker` handles normal approved implementation work, with one clear feature scope per worker, and can run standard verification commands such as lint, typecheck, test, build, check, CSS audit, coverage, and perf checks.
 8. `@repair-worker` handles bugs, failed validation, focused corrections, and root-cause loops.
@@ -156,7 +156,7 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 
 - **Faster, cheaper exploration.** Graph lookups replace broad grep/file sweeps, so `@explore` spends fewer tokens locating affected files, call paths, and impact radius before a plan is written.
 - **Better impact analysis.** `graphify path "A" "B"` and `graphify explain "X"` surface dependency and call relationships that are easy to miss with text search, which tightens the orchestrator's "affected files" and risk sections.
-- **No API cost for code.** Graphify extracts code locally via tree-sitter (AST), so building and refreshing the graph for a code-only repo runs fully offline with no API key.
+- **No API cost for code.** Graphify extracts code locally via tree-sitter (AST), so building and refreshing the graph for a code-only repo runs fully offline with no API key. When `graphify-out/` is present, `@fullstack-worker` and `@repair-worker` run `graphify update .` after each verified slice to keep the graph and `GRAPH_REPORT.md` fresh, and the orchestrator and workers reuse `GRAPH_REPORT.md` for cheap orientation instead of broad file scanning — keeping context small.
 - **Stays optional and safe.** When `graphify-out/` is absent or stale, exploration falls back to normal file scanning — the working tree always remains the source of truth.
 
 ### Install graphify
