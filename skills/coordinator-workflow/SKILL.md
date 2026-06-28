@@ -57,7 +57,7 @@ Responsibilities:
 
 - Clarify the goal.
 - Inspect only the necessary repository context.
-- When `graphify-out/` is present, read `graphify-out/GRAPH_REPORT.md` for a quick orientation pass (key concepts and connections) before broad file reading, to save context.
+- When `graphify-out/` is present and verified fresh, work graph-first on the read path: read `graphify-out/GRAPH_REPORT.md` for a quick orientation pass (key concepts and connections) before broad file reading, and for your own quick "what connects / what uses / impact radius / path A→B" checks run `graphify explain`/`query`/`path` first rather than grepping `graphify-out/`. Never grep the graph's output files — query the graph. Delegate broad discovery to `@explore`.
 - Decide whether `@explore` or `@scout` is needed.
 - Decompose the task.
 - Identify affected files.
@@ -103,12 +103,13 @@ Detection and verification gate (run read-only, in order):
    - A graphify post-commit auto-rebuild hook is installed (`graphify hook install` adds a post-commit hook that rebuilds `graph.json` from the AST on every commit at no API cost; check for it in `.git/hooks/post-commit` or the repo's git config), **or**
    - The last commit touching `graphify-out/graph.json` is at or newer than the last commit touching tracked source. A practical check: `git log -1 --format=%cI -- graphify-out/graph.json` versus `git log -1 --format=%cI -- <source dirs>`. If source has commits newer than the graph, the graph is stale.
    - Also treat the graph as stale if `graph.json` has unresolved merge-conflict markers, or if `git status` shows large uncommitted source changes not yet reflected in the graph.
-3. **Use when fresh.** Query the graph instead of grepping:
+3. **Use when fresh — query first, do not grep the graph.** For any "what connects / what uses / who calls / impact radius / path A→B" question, the graph's read path is the instructed first move: run a structured query *before* grep or broad file scanning. Querying is the whole point of carrying the graph; **never grep `graphify-out/` itself** — query it.
    - `graphify query "what connects auth to the database?"` (add `--graph graphify-out/graph.json` to target a specific graph)
    - `graphify path "UserService" "DatabasePool"` for call/dependency paths
-   - `graphify explain "RateLimiter"` for a node's role and neighbors
-   - Read `graphify-out/GRAPH_REPORT.md` for an orientation pass and suggested questions
-   - If the project exposes the graph as an MCP server (`python -m graphify.serve graphify-out/graph.json`), prefer its structured tools (`query_graph`, `get_node`, `get_neighbors`, `shortest_path`) when available.
+   - `graphify explain "RateLimiter"` for a node's role and neighbors (this is the direct answer to "is X still used?" — its inbound edges)
+   - Read `graphify-out/GRAPH_REPORT.md` for an orientation pass and suggested questions. **Read order:** `graph.json` and `GRAPH_REPORT.md` are always present after a build; `wiki/` exists only when built with `--wiki`, so check before reading it. Plain string/single-file lookups stay free-form — the query-first rule is for relationship and impact questions, not every search.
+   - **CLI is the default surface** (it reads `graph.json` fresh on every call, which fits the per-slice `graphify update .` cadence). Optionally, for a long, stable, read-only session, the graph can be exposed as an MCP server (`python3 -m graphify.serve graphify-out/graph.json`) whose structured tools (`query_graph`, `get_node`, `get_neighbors`, `shortest_path`) are cleaner — but the server loads a snapshot, so it must be restarted after any `graphify update .` or it serves a stale graph.
+   - Log the freshness verdict once at session start (e.g. "graph fresh — last `graphify update .` at slice 4.2, in-session") so a later reader knows the read path was trustworthy.
 4. **Fall back when stale or absent.** If the graph fails the freshness gate, do normal file-based exploration and explicitly flag the staleness in the explore report (e.g. "graphify-out/ present but stale — last built before recent source commits; recommend `/graphify . --update` or `/graphify .`"). Never silently trust a stale graph, and never run a rebuild as part of read-only exploration — surface the recommendation to the orchestrator instead.
 
 A graph that a worker just refreshed with `graphify update .` during the current session is fresh for in-session orientation even before the change is committed: the per-slice refresh keeps the working-tree graph current between commits, so the orchestrator and the next worker can trust `GRAPH_REPORT.md` without re-running the git-commit freshness gate. The git-commit gate above still governs a graph inherited from a prior session.
@@ -155,9 +156,9 @@ Worker instructions:
 - Do not refactor unrelated code.
 - Match existing code style and project conventions.
 - Preserve public contracts unless the slice explicitly changes them.
-- When `graphify-out/` is present, you may read `graphify-out/GRAPH_REPORT.md` (or run `graphify query`/`graphify explain`) to orient on impact radius cheaply instead of scanning many files, keeping your context small. The working tree remains the source of truth.
+- When `graphify-out/` is present and verified fresh and you need impact radius, callers, or what connects to a symbol you are about to change, run `graphify explain "<node>"`/`graphify query "<q>"` (`--graph graphify-out/graph.json`) **first** instead of grepping `graphify-out/` or scanning many files — query the graph, do not grep its output; read `GRAPH_REPORT.md` only for orientation and query a node rather than pulling the whole report to keep context small. Fall back to grep/file reads only if the graph is absent, stale, or returns nothing. The working tree remains the source of truth.
 - Run the slice's own verification, or explain why it cannot be run.
-- After the slice's verification passes (slice successful and completed), if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the knowledge graph and `GRAPH_REPORT.md` (AST-only, no LLM cost). Skip it silently when `graphify-out/` is absent; never build a graph from scratch.
+- After the slice's verification passes (slice successful and completed), if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the knowledge graph and `GRAPH_REPORT.md` (AST-only, no LLM cost). Skip it silently when `graphify-out/` is absent; never build a graph from scratch. If the project's own installed graphify section (AGENTS.md/CLAUDE.md) defines a different update cadence, follow that local rule instead of this per-slice default.
 - Report changed files, commands run, the slice verification result, whether `graphify update .` ran, and unresolved issues.
 
 ### repair-worker
@@ -184,9 +185,9 @@ Worker instructions:
 - Implement the smallest safe fix.
 - Do not delete tests, weaken assertions, disable checks, or ignore errors unless explicitly approved.
 - Do not opportunistically refactor.
-- When `graphify-out/` is present, you may read `graphify-out/GRAPH_REPORT.md` (or run `graphify query`/`graphify explain`) to orient on impact radius cheaply instead of scanning many files, keeping your context small. The working tree remains the source of truth.
+- When `graphify-out/` is present and verified fresh and you need impact radius, callers, or what connects to the code under repair, run `graphify explain "<node>"`/`graphify query "<q>"` (`--graph graphify-out/graph.json`) **first** instead of grepping `graphify-out/` or scanning many files — query the graph, do not grep its output; read `GRAPH_REPORT.md` only for orientation and query a node rather than pulling the whole report to keep context small. Fall back to grep/file reads only if the graph is absent, stale, or returns nothing. The working tree remains the source of truth.
 - Stop and report if the failure indicates a broader product or architecture decision.
-- After the fix is validated, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the knowledge graph and `GRAPH_REPORT.md` (AST-only, no LLM cost). Skip it silently when `graphify-out/` is absent; never build a graph from scratch.
+- After the fix is validated, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the knowledge graph and `GRAPH_REPORT.md` (AST-only, no LLM cost). Skip it silently when `graphify-out/` is absent; never build a graph from scratch. If the project's own installed graphify section (AGENTS.md/CLAUDE.md) defines a different update cadence, follow that local rule instead of this per-slice default.
 - Report evidence, root cause, changed files, commands run, validation results, whether `graphify update .` ran, unresolved failures, and risks.
 
 ### docs-maintainer
@@ -527,7 +528,8 @@ Constraints:
 
 Verify (this slice):
 [the slice's own check]
-- After verification passes, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the graph and `GRAPH_REPORT.md` (no LLM cost). Skip silently if absent.
+- For impact-radius/"what connects" checks while implementing, query the graph (`graphify explain`/`query` --graph graphify-out/graph.json) first instead of grepping graphify-out/.
+- After verification passes, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the graph and `GRAPH_REPORT.md` (no LLM cost). Skip silently if absent. If the project's installed graphify section (AGENTS.md/CLAUDE.md) sets a different update cadence, follow that local rule.
 
 Report:
 - Changed files, commands run, verification result, whether `graphify update .` ran, blockers, and anything to capture in the phase artifact.
@@ -560,7 +562,8 @@ Constraints:
 - Do not delete tests, weaken assertions, disable checks, or ignore errors unless explicitly approved.
 - Match existing style and project conventions.
 - Run the relevant validation or explain why it cannot be run.
-- After validation passes, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the graph and `GRAPH_REPORT.md` (no LLM cost). Skip silently if absent.
+- For impact-radius/"what connects" checks while repairing, query the graph (`graphify explain`/`query` --graph graphify-out/graph.json) first instead of grepping graphify-out/.
+- After validation passes, if `graphify-out/` exists at the repo root, run `graphify update .` to refresh the graph and `GRAPH_REPORT.md` (no LLM cost). Skip silently if absent. If the project's installed graphify section (AGENTS.md/CLAUDE.md) sets a different update cadence, follow that local rule.
 - Report evidence, root cause, changed files, commands run, validation results, whether `graphify update .` ran, and unresolved risks.
 ```
 

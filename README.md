@@ -152,11 +152,13 @@ This workflow makes those failure modes explicit. The orchestrator plans and rev
 
 [`graphify`](https://github.com/safishamsi/graphify) is a separate, optional tool that turns a codebase into a queryable knowledge graph (`graphify-out/`). This workflow integrates with it but does not require it: when a verified, up-to-date graph is present, `@explore` uses it as the first lookup surface — `graphify query`, `graphify path`, and `graphify explain` answer "what connects to what" and impact-radius questions faster than grepping, and `graphify-out/GRAPH_REPORT.md` gives a quick orientation pass.
 
+Across all four working roles (`@explore`, `@plan-orchestrator`, `@fullstack-worker`, `@repair-worker`), querying the graph is the **instructed first move** for relationship/impact questions — not just reading `GRAPH_REPORT.md` and not grepping `graphify-out/`. The graph is a queryable surface, so agents query it (read path) before falling back to grep/file scans; see [`docs/adr/0002-graphify-as-queryable-graph.md`](./docs/adr/0002-graphify-as-queryable-graph.md) and the read-path/refresh-path glossary in [`CONTEXT.md`](./CONTEXT.md).
+
 ### Why use it with this skill
 
 - **Faster, cheaper exploration.** Graph lookups replace broad grep/file sweeps, so `@explore` spends fewer tokens locating affected files, call paths, and impact radius before a plan is written.
 - **Better impact analysis.** `graphify path "A" "B"` and `graphify explain "X"` surface dependency and call relationships that are easy to miss with text search, which tightens the orchestrator's "affected files" and risk sections.
-- **No API cost for code.** Graphify extracts code locally via tree-sitter (AST), so building and refreshing the graph for a code-only repo runs fully offline with no API key. When `graphify-out/` is present, `@fullstack-worker` and `@repair-worker` run `graphify update .` after each verified slice to keep the graph and `GRAPH_REPORT.md` fresh, and the orchestrator and workers reuse `GRAPH_REPORT.md` for cheap orientation instead of broad file scanning — keeping context small.
+- **No API cost for code.** Graphify extracts code locally via tree-sitter (AST), so building and refreshing the graph for a code-only repo runs fully offline with no API key. When `graphify-out/` is present, `@fullstack-worker` and `@repair-worker` run `graphify update .` after each verified slice to keep the graph and `GRAPH_REPORT.md` fresh, and the orchestrator and workers reuse `GRAPH_REPORT.md` for cheap orientation instead of broad file scanning — keeping context small. This per-slice cadence is the skill default; if the project's own installed graphify section (`AGENTS.md`/`CLAUDE.md`) defines a different update cadence, that local rule takes precedence.
 - **Stays optional and safe.** When `graphify-out/` is absent or stale, exploration falls back to normal file scanning — the working tree always remains the source of truth.
 
 ### Install graphify
